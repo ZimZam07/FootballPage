@@ -1,42 +1,330 @@
 @import "tailwindcss";
 
+/*
+ * Football Hub uses one permanent dark theme. The <html> element always carries
+ * the `dark` class, and `dark:` utilities are tied to that class rather than to
+ * the operating-system preference, so the site looks the same on every device.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ==================================================================== */
+/* Design system — "matchday editorial"                                  */
+/* Graphite surfaces, hairline structure, condensed broadcast type and   */
+/* a single floodlight-volt accent. Sections layer their own accents.    */
+/* ==================================================================== */
 @theme {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --font-sans: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-barlow), "Arial Narrow", ui-sans-serif, sans-serif;
+
+  /* Neutral graphite replaces Tailwind's blue-tinted slate everywhere. */
+  --color-slate-50: #f5f6f7;
+  --color-slate-100: #e9ebee;
+  --color-slate-200: #d5d8dd;
+  --color-slate-300: #b4b9c1;
+  --color-slate-400: #a1a7b1;
+  --color-slate-500: #7e8590;
+  --color-slate-600: #4c525b;
+  --color-slate-700: #353940;
+  --color-slate-800: #22252b;
+  --color-slate-900: #16181c;
+  --color-slate-950: #0b0c0f;
+
+  /* The brand accent: floodlight volt (replaces the old turquoise). */
+  --color-teal-50: #fbffe8;
+  --color-teal-100: #f4ffc4;
+  --color-teal-200: #ebff94;
+  --color-teal-300: #dcfa5a;
+  --color-teal-400: #c8ec2c;
+  --color-teal-500: #a9cc12;
+  --color-teal-600: #84a20b;
+  --color-teal-700: #647b0d;
+  --color-teal-800: #4e5f11;
+  --color-teal-900: #415012;
+  --color-teal-950: #222c04;
+  --color-volt: #d4f53c;
+
+  /* Surfaces */
+  --color-ink: #0b0c0f;
+  --color-panel: #121418;
+  --color-raised: #181b20;
+  --color-line: rgb(255 255 255 / 0.08);
+  --color-line-strong: rgb(255 255 255 / 0.14);
+
+  /* Tighter, more deliberate corners across the product. */
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.625rem;
+  --radius-3xl: 0.75rem;
+  --radius-4xl: 1rem;
 }
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #0b0c0f;
+  --foreground: #eceef1;
+  color-scheme: dark;
 }
 
-.dark {
-  --background: #020617;
-  --foreground: #f8fafc;
-}
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: Inter, system-ui, -apple-system, sans-serif;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* Custom Gradients and Utilities from original file */
-.gradient-text {
-  @apply bg-clip-text text-transparent bg-linear-to-r from-teal-400 to-blue-500;
+::selection { background: rgb(212 245 60 / 0.85); color: #0b0c0f; }
+
+/* In the base layer so utilities such as `outline-none` (e.g. on dialog panels) can override it. */
+@layer base {
+  :focus-visible { outline: 2px solid #d4f53c; outline-offset: 2px; }
 }
 
-.match-card-gradient {
-  @apply bg-linear-to-br from-slate-900 to-slate-800 border border-white/5 shadow-xl;
+/* Display face: condensed, slightly tightened, with lining tabular figures for scores. */
+.font-display { font-family: var(--font-display); letter-spacing: -0.005em; font-variant-numeric: lining-nums tabular-nums; }
+
+/* Editorial kicker: small uppercase label that opens a section. */
+.kicker { font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-slate-400); }
+
+/* Hairline that runs to the edge of its container after a heading. */
+.rule-after { display: flex; align-items: center; gap: 0.875rem; }
+.rule-after::after { content: ""; flex: 1; height: 1px; background: var(--color-line); }
+
+/* ------------------------------------------------------------------ */
+/* Shared motion                                                       */
+/* ------------------------------------------------------------------ */
+@keyframes ch-fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes ch-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ch-pop { from { opacity: 0; transform: translateY(8px) scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes ch-shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+@keyframes ch-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes ch-pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.ch-fade-up { animation: ch-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ch-fade { animation: ch-fade 0.25s ease-out both; }
+.ch-pop { animation: ch-pop 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ch-grow { transform-origin: var(--grow-origin, left); animation: ch-grow 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ch-live-dot { animation: ch-pulse-dot 1.4s ease-in-out infinite; }
+
+.ch-skeleton {
+  background: linear-gradient(90deg, rgb(255 255 255 / 0.04) 0px, rgb(255 255 255 / 0.08) 80px, rgb(255 255 255 / 0.04) 160px);
+  background-size: 800px 100%;
+  animation: ch-shimmer 1.4s linear infinite;
 }
 
-.hover-lift {
-  @apply transition-transform duration-300 hover:-translate-y-1 hover:shadow-2xl;
+.ch-scrollbar-none { scrollbar-width: none; }
+.ch-scrollbar-none::-webkit-scrollbar { display: none; }
+
+/* Solid row background for the sticky first column of the standings table */
+:root { --ch-row-bg: #121418; }
+.ch-sticky-cell { position: sticky; left: 0; z-index: 10; background: var(--ch-cell-bg, var(--ch-row-bg)); }
+@media (min-width: 768px) { .ch-sticky-cell { position: static; background: transparent; } }
+/* Club-coloured text that stays readable on dark backgrounds */
+.ch-accent-text { color: color-mix(in srgb, var(--accent) 45%, white); }
+
+/* Scroll-triggered reveal (toggled by <Reveal/>) */
+.bc-reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), transform 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
+.bc-reveal.bc-in { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .ch-fade-up, .ch-fade, .ch-pop, .ch-grow, .ch-skeleton, .ch-live-dot { animation: none !important; }
+  .bc-reveal { opacity: 1; transform: none; transition: none; }
 }
 
-@layer utilities {
-  .glass {
-    @apply backdrop-blur-md bg-white/5 border border-white/10;
-  }
+/* ------------------------------------------------------------------ */
+/* Navbar — flush graphite bar, hairline base, sliding volt underline  */
+/* ------------------------------------------------------------------ */
+.nav-shell {
+  background: rgb(11 12 15 / 0.86);
+  border-bottom: 1px solid var(--color-line);
+  backdrop-filter: blur(14px) saturate(130%);
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+.nav-shell[data-scrolled="1"] { background: rgb(11 12 15 / 0.96); border-bottom-color: var(--color-line-strong); }
+.nav-indicator { background: #d4f53c; opacity: 0; will-change: transform, width; }
+.nav-indicator[data-ready] {
+  opacity: 1;
+  transition: transform 0.45s cubic-bezier(0.65, 0, 0.35, 1), width 0.45s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.nav-hover { background: rgb(255 255 255 / 0.35); transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), width 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.15s ease; will-change: transform, width; }
+.nav-icon { transition: transform 0.35s cubic-bezier(0.34, 1.4, 0.64, 1), color 0.2s ease; }
+.nav-item:hover .nav-icon { transform: translateY(-1px); }
+.nav-item[data-k="ucl"] .nav-icon { transition-duration: 0.7s; }
+.nav-item[data-k="ucl"]:hover .nav-icon { transform: rotate(72deg); }
+.nav-item:active { transform: translateY(1px); }
+.nav-brand-mark { transition: transform 0.6s cubic-bezier(0.34, 1.3, 0.64, 1); }
+.nav-brand:hover .nav-brand-mark { transform: rotate(-90deg); }
+@keyframes nav-live { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+.nav-live-dot { animation: nav-live 1.6s ease-in-out infinite; }
+@keyframes nav-drawer-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.nav-drawer-item { animation: nav-drawer-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .nav-live-dot, .nav-drawer-item { animation: none !important; }
+  .nav-indicator[data-ready], .nav-hover, .nav-icon, .nav-brand-mark { transition: none !important; }
+  .nav-item:hover .nav-icon, .nav-brand:hover .nav-brand-mark { transform: none !important; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Watch Live — destination panels                                     */
+/* ------------------------------------------------------------------ */
+.sd-panel { flex: 1 1 0%; transition: flex-grow 0.7s cubic-bezier(0.65, 0, 0.35, 1), border-color 0.3s ease; }
+@media (min-width: 1024px) {
+  .sd-row:hover .sd-panel { flex-grow: 0.85; }
+  .sd-row .sd-panel:hover, .sd-row .sd-panel:focus-visible { flex-grow: 1.35; }
+}
+.sd-panel:hover, .sd-panel:focus-visible { border-color: color-mix(in srgb, var(--p) 45%, transparent); }
+/* Extruded wordmark: a short stack of offset shadows that deepens on hover */
+.sd-word {
+  --d: 3;
+  text-shadow: 1px 1px 0 var(--ex), 2px 2px 0 var(--ex), 3px 3px 0 var(--ex);
+  transform: translate3d(0, 0, 0);
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), text-shadow 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sd-panel:hover .sd-word, .sd-panel:focus-visible .sd-word {
+  transform: translate3d(-4px, -4px, 0);
+  text-shadow: 1px 1px 0 var(--ex), 2px 2px 0 var(--ex), 3px 3px 0 var(--ex), 4px 4px 0 var(--ex), 5px 5px 0 var(--ex), 6px 6px 0 var(--ex), 7px 7px 0 var(--ex), 8px 8px 0 var(--ex);
+}
+.sd-figure { transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease; opacity: 0.75; }
+.sd-panel:hover .sd-figure, .sd-panel:focus-visible .sd-figure { transform: translate3d(-18px, 10px, 0); opacity: 1; }
+.sd-edge { transform: scaleX(0.12); transition: transform 0.7s cubic-bezier(0.65, 0, 0.35, 1); }
+.sd-panel:hover .sd-edge, .sd-panel:focus-visible .sd-edge { transform: scaleX(1); }
+.sd-cta { transition: filter 0.2s ease; }
+.sd-panel:hover .sd-cta { filter: brightness(1.08); }
+.sd-cta-arrow { transition: transform 0.35s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.sd-panel:hover .sd-cta-arrow { transform: translate(2px, -2px); }
+.sd-panel:active .sd-cta { transform: translateY(1px); }
+@media (prefers-reduced-motion: reduce) {
+  .sd-panel, .sd-word, .sd-figure, .sd-edge, .sd-cta-arrow { transition: none !important; }
+  .sd-panel:hover .sd-word, .sd-panel:hover .sd-figure { transform: none; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Creators — portrait on an offset frame that separates on hover      */
+/* ------------------------------------------------------------------ */
+.cr-frame { background: #ff3d2e; opacity: 0.18; transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
+.cr-photo { transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.45s ease; }
+.cr-photo img { transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+.cr-card:hover .cr-frame, .cr-card:focus-visible .cr-frame { opacity: 0.9; transform: translate(8px, 8px); }
+.cr-card:hover .cr-photo, .cr-card:focus-visible .cr-photo { transform: translate(-3px, -3px); box-shadow: 0 10px 24px -10px rgb(0 0 0 / 0.8); }
+.cr-card:hover .cr-photo img { transform: scale(1.06); }
+.cr-arrow { transition: transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.cr-card:hover .cr-arrow { transform: translate(2px, -2px); }
+@media (prefers-reduced-motion: reduce) {
+  .cr-frame, .cr-photo, .cr-photo img, .cr-arrow { transition: none !important; }
+}
+
+/* ------------------------------------------------------------------ */
+/* UEFA Champions League — midnight band, silver lines                 */
+/* ------------------------------------------------------------------ */
+.ucl-band {
+  background:
+    radial-gradient(120% 140% at 85% -20%, rgb(61 96 196 / 0.35), transparent 55%),
+    linear-gradient(180deg, #0a1532 0%, #0b1226 60%, #0b0c0f 100%);
+  border-bottom: 1px solid rgb(201 211 230 / 0.12);
+}
+.ucl .ucl-table { background: #0c1328; }
+@keyframes ucl-row-in { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+.ucl-trow { animation: ucl-row-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; transition: background-color 0.2s ease; }
+.ucl-trow:hover { background-color: rgb(201 211 230 / 0.05); }
+.ucl-cut td { border-bottom: 1px solid rgb(201 211 230 / 0.45); }
+.ucl-row { transition: background-color 0.2s ease; }
+.ucl-row:hover { background-color: rgb(201 211 230 / 0.04); }
+/* Bracket connectors that draw in, column by column */
+@keyframes ucl-draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.ucl-stub { position: absolute; top: 50%; width: 1rem; height: 1px; background: rgb(201 211 230 / 0.35); animation: ucl-draw 0.5s cubic-bezier(0.65, 0, 0.35, 1) both; }
+.ucl-stub-out { right: -1rem; transform-origin: left; margin-right: -1px; }
+.ucl-stub-in { left: -1rem; transform-origin: right; margin-left: -1px; }
+@media (prefers-reduced-motion: reduce) {
+  .ucl-trow, .ucl-stub { animation: none !important; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Big Clash — the archive                                             */
+/* ------------------------------------------------------------------ */
+.bc-art-inner {
+  background:
+    linear-gradient(115deg, var(--h) 0 49.6%, rgb(0 0 0 / 0.55) 49.6% 50.4%, var(--a) 50.4% 100%);
+  transform: scale(1.001);
+  transition: transform 1.4s cubic-bezier(0.22, 1, 0.36, 1), filter 0.6s ease;
+  filter: saturate(0.82) contrast(1.05);
+}
+/* Film grain + vignette printed over the artwork */
+.bc-art::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 50%, transparent 55%, rgb(0 0 0 / 0.45)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+.bc-poster { transition: border-color 0.4s ease; }
+.bc-poster:hover, .bc-poster:focus-visible { border-color: rgb(239 228 204 / 0.35); }
+.bc-poster:hover .bc-art-inner, .bc-poster:focus-visible .bc-art-inner { transform: scale(1.07); filter: saturate(1) contrast(1.05); }
+.bc-caption { transition: color 0.3s ease; }
+.bc-poster:hover .bc-caption { color: var(--color-slate-300); }
+.bc-arrow { transition: transform 0.35s cubic-bezier(0.34, 1.4, 0.64, 1), color 0.2s ease; }
+.bc-poster:hover .bc-arrow, .bc-ledger:hover .bc-arrow, .bc-rival:hover .bc-arrow { transform: translate(3px, -3px); }
+.bc-ledger { transition: background-color 0.25s ease, padding 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
+.bc-ledger:hover { background-color: rgb(255 255 255 / 0.025); padding-left: 0.5rem; }
+.bc-rival { transition: border-color 0.3s ease; }
+.bc-rival:hover { border-color: rgb(255 106 82 / 0.45); }
+.bc-rival-l, .bc-rival-r { transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+.bc-rival:hover .bc-rival-l { transform: translateX(10px) scale(1.06); }
+.bc-rival:hover .bc-rival-r { transform: translateX(-10px) scale(1.06); }
+/* Projector wipe: content is revealed left-to-right like a frame being lit */
+.bc-wipe { clip-path: inset(0 100% 0 0); opacity: 0.4; transition: clip-path 1s cubic-bezier(0.65, 0, 0.35, 1), opacity 1s ease; }
+.bc-wipe.bc-in { clip-path: inset(0 0 0 0); opacity: 1; }
+/* Film strip */
+.bc-sprockets {
+  background-color: #070706;
+  background-image: radial-gradient(circle at 50% 50%, #1d1b17 0 3px, transparent 3.5px);
+  background-size: 18px 20px;
+  background-position: 6px 0;
+}
+.bc-frame { transition: background-color 0.3s ease; }
+.bc-frame:hover { background-color: #17150f; }
+.bc-reel { background: #070706; padding-top: 0; padding-bottom: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .bc-art-inner, .bc-arrow, .bc-ledger, .bc-rival-l, .bc-rival-r { transition: none !important; }
+  .bc-wipe { clip-path: none; opacity: 1; transition: none; }
+}
+/* Historic match title sequence and article */
+.bc-titles .bc-title-art { animation: bc-push 18s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes bc-push { from { transform: scale(1.12); } to { transform: scale(1); } }
+.bc-story > p:first-child::first-letter {
+  float: left; font-family: var(--font-display); font-weight: 800; font-size: 4.6em; line-height: 0.82;
+  margin: 0.06em 0.1em 0 0; color: #efe4cc;
+}
+@media (prefers-reduced-motion: reduce) { .bc-titles .bc-title-art { animation: none; } }
+
+/* ------------------------------------------------------------------ */
+/* Club Hub — a match-day dashboard in the club's own colour           */
+/* ------------------------------------------------------------------ */
+.ch-band {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--club) 34%, #0b0c0f) 0%, color-mix(in srgb, var(--club) 12%, #0b0c0f) 45%, #0b0c0f 85%);
+}
+.ch-crest-logo { transition: transform 0.45s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.ch-crest:hover .ch-crest-logo { transform: translateY(-4px) scale(1.06); }
+.ch-row { transition: background-color 0.2s ease; }
+.ch-row:hover { background-color: rgb(255 255 255 / 0.02); }
+.ch-player { transition: border-color 0.3s ease; }
+.ch-player:hover, .ch-player:focus-visible { border-color: color-mix(in srgb, var(--club) 55%, transparent); }
+.ch-player-photo { transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1); transform-origin: bottom center; }
+.ch-player:hover .ch-player-photo { transform: translateY(-4px) scale(1.05); }
+/* A mown pitch: alternating stripes under the line markings */
+.ch-pitch {
+  background:
+    repeating-linear-gradient(180deg, #1d6b3c 0 44px, #1a6136 44px 88px);
+  box-shadow: inset 0 0 60px rgb(0 0 0 / 0.35);
+}
+.ch-token { transition: transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.ch-token:hover { transform: translateY(-2px) scale(1.08); }
+.ch-news img { transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
+.ch-news:hover img { transform: scale(1.04); }
+@media (prefers-reduced-motion: reduce) {
+  .ch-crest-logo, .ch-player-photo, .ch-token, .ch-news img { transition: none !important; }
 }
