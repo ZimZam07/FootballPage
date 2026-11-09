@@ -7,8 +7,8 @@ export const metadata: Metadata = { title: "Page not found" };
 const SECTIONS = [
   { href: "/?tab=club", label: "Club Hub", hint: "Your club's dashboard" },
   { href: "/?tab=ucl", label: "Champions League", hint: "Standings, fixtures and knockouts" },
-  { href: "/?tab=big", label: "Big Clash", hint: "The matches that made history" },
   { href: "/?tab=creators", label: "Creators", hint: "Football channels worth following" },
+  { href: "/?tab=big", label: "Big Clash", hint: "The matches that made history" },
 ];
 
 export default function NotFound() {
