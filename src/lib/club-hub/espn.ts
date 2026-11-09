@@ -19,6 +19,7 @@ import type {
   EventPlayer,
   MatchEvent,
   MatchEventKind,
+  PlayerContributions,
 } from "./types";
 
 /**
@@ -380,6 +381,54 @@ function matchStats(homeTeam: any, awayTeam: any): MatchStatLine[] {
   return lines;
 }
 
+/** Goals, assists and cards from a roster entry's per-player match box score (null if not published). */
+function contributionsOf(stats: any): PlayerContributions | null {
+  if (!Array.isArray(stats) || !stats.length) return null;
+  const v = (name: string) => {
+    const n = Number(stats.find((x: any) => x?.name === name)?.value);
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
+  };
+  return { goals: v("totalGoals"), ownGoals: v("ownGoals"), assists: v("goalAssists"), yellowCards: v("yellowCards"), redCards: v("redCards"), secondYellow: false };
+}
+
+/** ESPN labels every dismissal "Red Card"; a second booking is identified by the event text ("Second yellow card to ..."). */
+export const isSecondYellow = (e: { label: string; text: string | null }) => /yellow/i.test(e.label) || /second yellow/i.test(e.text ?? "");
+
+/**
+ * Links each substitution to the players on both teams' sheets, and marks second-yellow dismissals,
+ * using the provider's own substitution and card events. Players are matched by id, then by name.
+ */
+function linkMatchEvents(side: MatchTeamDetail, events: MatchEvent[], which: "home" | "away") {
+  const all = [...side.starters, ...side.substitutes];
+  const find = (p: EventPlayer | null | undefined) =>
+    p ? all.find((x) => (p.id && x.id === p.id) || x.name === p.name) ?? null : null;
+  const ref = (x: LineupPlayer) => ({ id: x.id, name: x.name, shortName: x.shortName, jersey: x.jersey });
+  // Cards come from the events when there are any: ESPN's per-player box score can omit the
+  // booking that preceded a second-yellow dismissal (verified against its own event feed).
+  const cardEvents = events.filter((e) => e.side === which && (e.kind === "yellow" || e.kind === "red"));
+  if (events.length) {
+    for (const p of all) if (p.contributions) Object.assign(p.contributions, { yellowCards: 0, redCards: 0, secondYellow: false });
+    for (const e of cardEvents) {
+      const c = find(e.player)?.contributions;
+      if (!c) continue;
+      if (e.kind === "yellow") c.yellowCards++;
+      else {
+        c.redCards++;
+        if (isSecondYellow(e)) c.secondYellow = true;
+      }
+    }
+  }
+  for (const e of events) {
+    if (e.side !== which) continue;
+    if (e.kind === "sub") {
+      const on = find(e.player);
+      const off = e.related?.role === "off" ? find(e.related.player) : null;
+      if (on) on.cameOn = { minute: e.minute, other: off ? ref(off) : null };
+      if (off) off.wentOff = { minute: e.minute, other: on ? ref(on) : null };
+    }
+  }
+}
+
 function lineup(roster: any): { formation: string | null; starters: LineupPlayer[]; substitutes: LineupPlayer[] } {
   const entries: any[] = roster?.roster ?? [];
   const toPlayer = (p: any): LineupPlayer => ({
@@ -392,6 +441,10 @@ function lineup(roster: any): { formation: string | null; starters: LineupPlayer
     formationPlace: Number(p.formationPlace) || 0,
     subbedIn: Boolean(p.subbedIn),
     subbedOut: Boolean(p.subbedOut),
+    headshot: p.athlete?.headshot?.href ?? null,
+    contributions: contributionsOf(p.stats),
+    cameOn: null,
+    wentOff: null,
   });
   return {
     formation: roster?.formation ?? null,
@@ -631,6 +684,9 @@ export async function getMatchDetail(eventId: string): Promise<MatchDetail> {
     state === "pre" ? new Map<string, string>() : await squadPositions(data.header?.league?.slug, [home.team.id, away.team.id]);
   // Box score entries are keyed by team id; make sure the sides line up.
   const [hb, ab] = String(homeBox?.team?.id) === home.team.id ? [homeBox, awayBox] : [awayBox, homeBox];
+  const events = state === "pre" ? [] : matchEvents(data, home.team, away.team, positions);
+  linkMatchEvents(home, events, "home");
+  linkMatchEvents(away, events, "away");
 
   return {
     id: String(eventId),
@@ -645,7 +701,7 @@ export async function getMatchDetail(eventId: string): Promise<MatchDetail> {
     away,
     stats: state === "pre" ? [] : matchStats(hb, ab),
     probability: state === "pre" ? oddsToProbability(data.odds?.[0] ?? data.pickcenter?.[0]) : null,
-    events: state === "pre" ? [] : matchEvents(data, home.team, away.team, positions),
+    events,
   };
 }
 

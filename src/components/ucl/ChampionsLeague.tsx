@@ -5,20 +5,20 @@ import { useMemo, useState } from "react";
 import { ChevronRight, Star } from "lucide-react";
 import { formatDate, formatTime, relativeTime, timeZoneLabel, useActiveClub, useApi, useFavorites } from "@/lib/club-hub/client";
 import type { ClubRef, LeagueTeams } from "@/lib/club-hub/types";
-import type { UclKnockoutRound, UclMatch, UclOverview, UclStandingRow, UclZone } from "@/lib/ucl/types";
+import type { UclCleanSheets, UclKnockoutRound, UclLeader, UclMatch, UclOverview, UclStandingRow, UclZone } from "@/lib/ucl/types";
 import { ErrorState, SafeImg, Skeleton, StateMessage, TeamLogo } from "@/components/club-hub/ui";
 
 /* UEFA Champions League — midnight blue and silver. Restrained, precise competition graphics:
    a stage rail, a broadcast-style table with drawn qualification lines, and a bracket whose
    connectors draw themselves in. */
 
-type Section = "standings" | "fixtures" | "knockout" | "clubs" | "scorers";
+type Section = "standings" | "fixtures" | "knockout" | "clubs" | "stats";
 const SECTIONS: { id: Section; label: string }[] = [
   { id: "standings", label: "Standings" },
   { id: "fixtures", label: "Fixtures & results" },
   { id: "knockout", label: "Knockout" },
   { id: "clubs", label: "Clubs" },
-  { id: "scorers", label: "Top scorers" },
+  { id: "stats", label: "Top stats" },
 ];
 
 const SILVER = "#c9d3e6";
@@ -326,7 +326,7 @@ function Knockout({ rounds }: { rounds: UclKnockoutRound[] }) {
 }
 
 // ---------------------------------------------------------------------------
-// Clubs and scorers
+// Clubs and top stats
 
 function Clubs({ data, onOpenClub, teams }: { data: UclOverview; onOpenClub: (c: ClubRef) => void; teams: LeagueTeams[] | undefined }) {
   const hub = useMemo(() => new Map((teams ?? []).flatMap((l) => l.teams.map((t) => [t.id, { ...t, league: l.league }] as const))), [teams]);
@@ -382,10 +382,41 @@ function Clubs({ data, onOpenClub, teams }: { data: UclOverview; onOpenClub: (c:
   );
 }
 
-function Scorers({ data }: { data: UclOverview }) {
-  if (!data.scorers.length) return <StateMessage title="Top scorers unavailable" message="Scoring statistics couldn't be loaded right now." />;
-  const top = data.scorers[0].goals;
-  const face = (p: UclOverview["scorers"][number], cls: string) => (
+type StatTab = "goals" | "assists" | "cleanSheets";
+const STAT_TABS: { id: StatTab; label: string; unit: string }[] = [
+  { id: "goals", label: "Top Goal Scorers", unit: "Goals" },
+  { id: "assists", label: "Top Assist Makers", unit: "Assists" },
+  // ESPN publishes no player match ratings, so a reliable average-rating table isn't possible;
+  // clean sheets take that place (the agreed fallback), counted from completed matches.
+  { id: "cleanSheets", label: "Top Clean Sheets", unit: "Clean sheets" },
+];
+
+interface BoardRow {
+  id: string;
+  name: string;
+  headshot: string | null;
+  team: { name: string; logo: string | null };
+  value: number;
+  sub: string | null;
+}
+
+/** Standard competition ranking: tied values share a rank (1, 2, 2, 4). */
+function ranks(rows: BoardRow[]) {
+  return rows.map((r, i) => (i > 0 && rows[i - 1].value === r.value ? null : i + 1)).reduce<number[]>((acc, r, i) => [...acc, r ?? acc[i - 1]], []);
+}
+
+/** Show the top 20 — extended to include everyone tied with the 20th, so no tie is split. */
+function topWithTies(rows: BoardRow[], n = 20) {
+  if (rows.length <= n) return rows;
+  const cut = rows[n - 1].value;
+  return rows.filter((r, i) => i < n || r.value === cut);
+}
+
+function Leaderboard({ rows, unit }: { rows: BoardRow[]; unit: string }) {
+  const shown = topWithTies(rows);
+  const rank = ranks(shown);
+  const top = shown[0]?.value || 1;
+  const face = (p: BoardRow, cls: string) => (
     <SafeImg
       src={p.headshot}
       alt={p.name}
@@ -394,25 +425,100 @@ function Scorers({ data }: { data: UclOverview }) {
     />
   );
   return (
-    <ol className="border-t border-white/10">
-      {data.scorers.map((p, i) => (
-        <li key={p.id || p.name} className="ch-fade-up grid grid-cols-[2rem_auto_minmax(0,1fr)_auto] items-center gap-4 border-b border-white/[0.06] py-3 sm:grid-cols-[2.5rem_auto_minmax(0,1fr)_12rem_4rem]" style={{ animationDelay: `${i * 35}ms` }}>
-          <span className={`font-display text-xl font-bold ${i < 3 ? "text-white" : "text-slate-500"}`}>{i + 1}</span>
-          {face(p, i < 3 ? "h-12 w-12 rounded" : "h-10 w-10 rounded")}
-          <div className="min-w-0">
-            <p className={`truncate ${i < 3 ? "text-base font-semibold text-white" : "text-sm font-medium text-slate-200"}`}>{p.name}</p>
-            <p className="flex items-center gap-1.5 truncate text-xs text-slate-500">
-              <TeamLogo src={p.team.logo} name={p.team.name} className="h-3.5 w-3.5" /> {p.team.name}
-              {p.matches != null && <span>· {p.matches} matches</span>}
-            </p>
-          </div>
-          <div className="hidden h-[3px] bg-white/[0.06] sm:block">
-            <div className="ch-grow h-full bg-[#c9d3e6]" style={{ width: `${(p.goals / top) * 100}%`, animationDelay: `${200 + i * 40}ms` }} />
-          </div>
-          <span className="text-right font-display text-3xl font-bold leading-none text-white">{p.goals}</span>
-        </li>
-      ))}
+    <ol className="border-t border-white/10" aria-label={`${unit} leaderboard`}>
+      {shown.map((p, i) => {
+        const podium = rank[i] <= 3;
+        const tied = (i > 0 && rank[i - 1] === rank[i]) || (i < shown.length - 1 && rank[i + 1] === rank[i]);
+        return (
+          <li key={p.id} className="ch-fade-up grid grid-cols-[2.25rem_auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-white/[0.06] py-3 sm:grid-cols-[2.75rem_auto_minmax(0,1fr)_12rem_5rem] sm:gap-4" style={{ animationDelay: `${Math.min(i, 15) * 30}ms` }}>
+            <span className={`font-display text-xl font-bold tabular-nums ${podium ? "text-white" : "text-slate-500"}`} title={tied ? "Tied" : undefined}>
+              {rank[i]}
+              {tied && <span className="text-xs text-slate-500">=</span>}
+            </span>
+            {face(p, podium ? "h-12 w-12 rounded" : "h-10 w-10 rounded")}
+            <div className="min-w-0">
+              <p className={`truncate ${podium ? "text-base font-semibold text-white" : "text-sm font-medium text-slate-200"}`}>{p.name}</p>
+              <p className="flex items-center gap-1.5 truncate text-xs text-slate-500">
+                <TeamLogo src={p.team.logo} name={p.team.name} className="h-3.5 w-3.5" /> <span className="truncate">{p.team.name}</span>
+                {p.sub && <span className="shrink-0">· {p.sub}</span>}
+              </p>
+            </div>
+            <div className="hidden h-[3px] bg-white/[0.06] sm:block" aria-hidden>
+              <div className="ch-grow h-full bg-[#c9d3e6]" style={{ width: `${(p.value / top) * 100}%`, animationDelay: `${200 + Math.min(i, 15) * 40}ms` }} />
+            </div>
+            <span className="text-right font-display text-3xl font-bold leading-none tabular-nums text-white">
+              {p.value}
+              <span className="sr-only"> {unit.toLowerCase()}</span>
+            </span>
+          </li>
+        );
+      })}
     </ol>
+  );
+}
+
+function CleanSheets({ season }: { season: string }) {
+  const { data, error, loading, retry } = useApi<UclCleanSheets>("/api/ucl/clean-sheets", { refreshMs: 10 * 60_000 });
+  if (error) return <ErrorState error={error} onRetry={retry} />;
+  if (loading || !data) {
+    return (
+      <div className="space-y-2" aria-busy>
+        <p className="text-xs text-slate-500">Counting clean sheets from every completed match…</p>
+        {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-14" />)}
+      </div>
+    );
+  }
+  if (!data.keepers.length) {
+    return <StateMessage title="No clean sheets yet" message={`No goalkeeper has kept a clean sheet in the ${season.replace(/ UEFA Champions League$/, "")} competition so far.`} />;
+  }
+  const rows: BoardRow[] = data.keepers.map((k) => ({ id: k.id, name: k.name, headshot: null, team: k.team, value: k.cleanSheets, sub: `${k.appearances} ${k.appearances === 1 ? "match" : "matches"}` }));
+  return (
+    <div className="space-y-3">
+      <Leaderboard rows={rows} unit="Clean sheets" />
+      <p className="text-xs text-slate-500">
+        Counted from the line-ups and scores of {data.matchesCounted} completed {data.matchesCounted === 1 ? "match" : "matches"}: a clean sheet is credited to a goalkeeper who started and
+        played the whole match without conceding (extra time included, shoot-outs excluded).
+        {data.matchesMissing > 0 && <span className="text-amber-400"> {data.matchesMissing} match line-up{data.matchesMissing === 1 ? "" : "s"} couldn&apos;t be loaded, so this table may be incomplete.</span>}
+      </p>
+    </div>
+  );
+}
+
+function TopStats({ data }: { data: UclOverview }) {
+  const [tab, setTab] = useState<StatTab>("goals");
+  const toRows = (list: UclLeader[]): BoardRow[] => list.map((l) => ({ id: l.id, name: l.name, headshot: l.headshot, team: l.team, value: l.value, sub: l.matches != null ? `${l.matches} ${l.matches === 1 ? "match" : "matches"}` : null }));
+  const current = STAT_TABS.find((t) => t.id === tab)!;
+  return (
+    <div className="space-y-6">
+      <div className="ch-scrollbar-none -mx-4 flex gap-6 overflow-x-auto border-b border-white/10 px-4 sm:mx-0 sm:px-0" role="tablist" aria-label="Top stats">
+        {STAT_TABS.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+            className={`relative -mb-px shrink-0 pb-3 text-sm font-semibold transition-colors ${tab === t.id ? "text-white" : "text-slate-500 hover:text-slate-200"}`}
+          >
+            {t.label}
+            <span className={`absolute inset-x-0 -bottom-px h-0.5 origin-left bg-[#c9d3e6] transition-transform duration-300 ${tab === t.id ? "scale-x-100" : "scale-x-0"}`} />
+          </button>
+        ))}
+      </div>
+      <div key={tab} className="ch-fade-up">
+        {tab === "cleanSheets" ? (
+          <CleanSheets season={data.season} />
+        ) : !data.leaders ? (
+          <StateMessage title={`${current.label} unavailable`} message="ESPN's Champions League statistics couldn't be loaded right now. This page refreshes automatically." />
+        ) : data.leaders[tab].length === 0 ? (
+          <StateMessage title={`No ${current.unit.toLowerCase()} yet`} message="Leaders appear here once matches have been played." />
+        ) : (
+          <div className="space-y-3">
+            <Leaderboard rows={toRows(data.leaders[tab])} unit={current.unit} />
+            <p className="text-xs text-slate-500">{data.season} only — from ESPN&apos;s competition statistics. Tied players share a rank and are ordered by fewer matches.</p>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -472,7 +578,7 @@ export default function ChampionsLeague({ onGoToClubHub }: { onGoToClubHub: () =
             ) : section === "clubs" ? (
               <Clubs data={data} teams={teams} onOpenClub={openClub} />
             ) : (
-              <Scorers data={data} />
+              <TopStats data={data} />
             )}
           </div>
 

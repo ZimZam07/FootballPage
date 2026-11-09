@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { ArrowDown, ArrowUp, BarChart3, MapPin, Users } from "lucide-react";
 import { competitionLabel, formatDate, formatTime, useApi } from "@/lib/club-hub/client";
-import type { LineupPlayer, MatchDetail, MatchStatLine, MatchTeamDetail, TeamLite } from "@/lib/club-hub/types";
-import { ErrorState, Segmented, Skeleton, StateMessage, TeamLogo } from "./ui";
+import type { LineupPlayer, MatchDetail, MatchStatLine, MatchTeamDetail, PlayerContributions, TeamLite } from "@/lib/club-hub/types";
+import { ErrorState, SafeImg, Segmented, Skeleton, StateMessage, TeamLogo } from "./ui";
 
 // ---------------------------------------------------------------------------
 // Scoreboard
@@ -138,31 +138,142 @@ function arrange(starters: LineupPlayer[], formation: string | null): { keeper: 
   return { keeper, lines: lines.map((l) => [...l].sort((a, b) => lateral(a.positionAbbr) - lateral(b.positionAbbr))) };
 }
 
-function PitchPlayer({ p, color }: { p: LineupPlayer; color: string }) {
+/** Small football glyph for goal badges. */
+function Ball({ className = "" }: { className?: string }) {
   return (
-    <div className="flex w-16 flex-col items-center gap-1 sm:w-20" title={`${p.name} · ${p.position}`}>
+    <svg viewBox="0 0 16 16" className={className} aria-hidden>
+      <circle cx="8" cy="8" r="7.25" fill="#fff" stroke="#0b0c0f" strokeWidth="1.1" />
+      <path d="M8 4.6 10.9 6.7 9.8 10H6.2L5.1 6.7Z" fill="#0b0c0f" />
+      <path d="M8 4.6V1.2M10.9 6.7l3-1.2M9.8 10l1.9 2.9M6.2 10l-1.9 2.9M5.1 6.7l-3-1.2" stroke="#0b0c0f" strokeWidth="0.9" />
+    </svg>
+  );
+}
+
+const CARD = "inline-block h-[13px] w-[9px] rounded-[2px] ring-1 ring-black/40";
+
+/** Card, goal, own-goal and assist badges for one player, from this match's box score. */
+function Contributions({ c, compact = false }: { c: PlayerContributions | null; compact?: boolean }) {
+  if (!c) return null;
+  const cards =
+    c.redCards > 0 && c.secondYellow ? (
+      <span className="relative inline-flex" title="Sent off (second yellow)">
+        <span className={`${CARD} bg-yellow-400`} />
+        <span className={`${CARD} -ml-1 mt-0.5 bg-red-500`} />
+      </span>
+    ) : c.redCards > 0 ? (
+      <span className="inline-flex gap-0.5" title={c.yellowCards ? "Booked, then sent off" : "Sent off"}>
+        {c.yellowCards > 0 && <span className={`${CARD} bg-yellow-400`} />}
+        <span className={`${CARD} bg-red-500`} />
+      </span>
+    ) : c.yellowCards > 0 ? (
+      <span className={`${CARD} bg-yellow-400`} title="Booked" />
+    ) : null;
+  const goals = c.goals > 0 && (
+    <span className="inline-flex items-center gap-px rounded-full bg-black/55 py-px pl-px pr-1 text-[10px] font-bold text-white" title={`${c.goals} goal${c.goals > 1 ? "s" : ""}`}>
+      <Ball className="h-3 w-3" />
+      {c.goals > 1 && c.goals}
+    </span>
+  );
+  const ownGoals = c.ownGoals > 0 && (
+    <span className="inline-flex items-center gap-px rounded-full bg-red-600/90 py-px pl-px pr-1 text-[9px] font-bold text-white" title={`${c.ownGoals} own goal${c.ownGoals > 1 ? "s" : ""}`}>
+      <Ball className="h-3 w-3" />
+      OG{c.ownGoals > 1 && ` ${c.ownGoals}`}
+    </span>
+  );
+  const assists = c.assists > 0 && (
+    <span className="inline-flex h-4 items-center rounded-full bg-sky-500 px-1 text-[9px] font-bold text-white ring-1 ring-black/30" title={`${c.assists} assist${c.assists > 1 ? "s" : ""}`}>
+      A{c.assists > 1 && c.assists}
+    </span>
+  );
+  if (compact) {
+    if (!cards && !goals && !ownGoals && !assists) return null;
+    return <span className="inline-flex shrink-0 items-center gap-1">{goals}{ownGoals}{assists}{cards}</span>;
+  }
+  return (
+    <>
+      {cards && <span className="absolute -right-2.5 -top-1.5">{cards}</span>}
+      {/* Goals on the right edge and assists on the left, level with the photo, clear of the name strip below. */}
+      {(goals || ownGoals) && <span className="absolute -right-4 top-[58%] flex -translate-y-1/2 flex-col items-start gap-0.5">{goals}{ownGoals}</span>}
+      {assists && <span className="absolute -left-3.5 top-[58%] -translate-y-1/2">{assists}</span>}
+    </>
+  );
+}
+
+type PitchView = "start" | "now";
+
+/**
+ * One player on the pitch. In the starting view, a starter who went off is marked with the minute;
+ * in the "now" view, a substitute shown in a starter's position is marked with the minute they came on.
+ */
+function PitchPlayer({ p, color, view, offPitch }: { p: LineupPlayer; color: string; view: PitchView; offPitch: boolean }) {
+  const sub = view === "start" ? (p.subbedOut || p.wentOff ? p.wentOff : null) : p.cameOn;
+  const title = [
+    `${p.jersey ? `${p.jersey} ` : ""}${p.name} · ${p.position}`,
+    view === "start" && p.wentOff ? `Off ${p.wentOff.minute}${p.wentOff.other ? ` for ${p.wentOff.other.name}` : ""}` : null,
+    view === "now" && p.cameOn ? `On ${p.cameOn.minute}${p.cameOn.other ? ` for ${p.cameOn.other.name}` : ""}` : null,
+  ].filter(Boolean).join(" · ");
+  return (
+    <div className={`flex w-16 flex-col items-center gap-1 sm:w-20 ${offPitch ? "opacity-60" : ""}`} title={title}>
       <div className="ch-token relative">
-        <span
-          className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white/90 font-display text-sm font-bold text-white shadow-[0_4px_10px_rgba(0,0,0,0.45)] sm:h-9 sm:w-9"
-          style={{ background: color }}
-        >
-          {p.jersey ?? ""}
-        </span>
-        {p.subbedOut && (
-          <span className="absolute -right-1.5 -top-1 rounded-full bg-white p-0.5 text-red-500 shadow" title="Substituted off">
+        {p.headshot ? (
+          <span className="block h-9 w-9 overflow-hidden rounded-full bg-slate-700 ring-2 sm:h-10 sm:w-10" style={{ ["--tw-ring-color" as string]: color }}>
+            <SafeImg src={p.headshot} alt={p.name} className="h-full w-full object-cover object-top" fallback={null} />
+          </span>
+        ) : (
+          <span
+            className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white/90 font-display text-sm font-bold text-white shadow-[0_4px_10px_rgba(0,0,0,0.45)] sm:h-9 sm:w-9"
+            style={{ background: color }}
+          >
+            {p.jersey ?? ""}
+          </span>
+        )}
+        {view === "start" && (p.subbedOut || p.wentOff) && (
+          <span className="absolute -left-2 -top-1.5 rounded-full bg-red-600 p-0.5 text-white shadow ring-1 ring-black/30" aria-label="Substituted off">
             <ArrowDown className="h-2.5 w-2.5" strokeWidth={3} />
           </span>
         )}
+        {view === "now" && p.cameOn && (
+          <span className="absolute -left-2 -top-1.5 rounded-full bg-emerald-500 p-0.5 text-white shadow ring-1 ring-black/30" aria-label="Came on">
+            <ArrowUp className="h-2.5 w-2.5" strokeWidth={3} />
+          </span>
+        )}
+        <Contributions c={p.contributions} />
       </div>
       <span className="max-w-full truncate rounded-sm bg-black/50 px-1.5 py-0.5 text-[10px] font-semibold leading-tight text-white sm:text-[11px]">
+        {p.headshot && p.jersey ? <span className="mr-0.5 text-white/60">{p.jersey}</span> : null}
         {p.shortName}
       </span>
+      {sub && <span className="-mt-0.5 text-[9px] font-semibold leading-none text-white/75">{sub.minute}</span>}
     </div>
   );
 }
 
-function Pitch({ side, color }: { side: MatchTeamDetail; color: string }) {
+/**
+ * Who occupies each starting position at the moment: a starter, or the substitute who replaced them
+ * (following chains of substitutions). Uses the provider's substitution events only.
+ */
+function occupant(starter: LineupPlayer, side: MatchTeamDetail): { player: LineupPlayer; offPitch: boolean } {
+  let current = starter;
+  for (let hops = 0; hops < 5 && current.wentOff?.other; hops++) {
+    const next = side.substitutes.find((s) => s.id === current.wentOff!.other!.id) ?? side.starters.find((s) => s.id === current.wentOff!.other!.id);
+    if (!next) break;
+    current = next;
+  }
+  // Still off the pitch: sent off, or substituted without a published replacement.
+  const offPitch = (current.contributions?.redCards ?? 0) > 0 || current.subbedOut || Boolean(current.wentOff);
+  return { player: current, offPitch };
+}
+
+function Pitch({ side, color, view }: { side: MatchTeamDetail; color: string; view: PitchView }) {
   const { keeper, lines } = arrange(side.starters, side.formation);
+  const render = (starter: LineupPlayer, c: string) => {
+    if (view === "start") {
+      const offPitch = (starter.contributions?.redCards ?? 0) > 0;
+      return <PitchPlayer key={starter.id || starter.name} p={starter} color={c} view="start" offPitch={offPitch} />;
+    }
+    const { player, offPitch } = occupant(starter, side);
+    return <PitchPlayer key={`${starter.id}-${player.id}`} p={player} color={c} view="now" offPitch={offPitch} />;
+  };
   return (
     <div className="ch-pitch relative overflow-hidden rounded-md p-3">
       {/* Pitch markings: half-way arc, penalty box, six-yard box and spot */}
@@ -172,21 +283,38 @@ function Pitch({ side, color }: { side: MatchTeamDetail; color: string }) {
         <div className="absolute bottom-0 left-1/2 h-7 w-20 -translate-x-1/2 border border-b-0 border-white/30" />
         <div className="absolute bottom-[3.25rem] left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-white/40" />
       </div>
-      <div className="relative flex min-h-[26rem] flex-col justify-between gap-2 py-4 sm:min-h-[30rem]">
+      <div className="relative flex min-h-[27rem] flex-col justify-between gap-3 py-4 sm:min-h-[31rem]">
         {[...lines].reverse().map((line, i) => (
           <div key={i} className="flex items-start justify-around">
-            {line.map((p) => <PitchPlayer key={p.id || p.name} p={p} color={color} />)}
+            {line.map((p) => render(p, color))}
           </div>
         ))}
-        <div className="flex justify-center">
-          {keeper.map((p) => <PitchPlayer key={p.id || p.name} p={p} color="#0f172a" />)}
-        </div>
+        <div className="flex justify-center">{keeper.map((p) => render(p, "#0f172a"))}</div>
       </div>
     </div>
   );
 }
 
-function TeamLineup({ side, color }: { side: MatchTeamDetail; color: string }) {
+function BenchRow({ p }: { p: LineupPlayer }) {
+  return (
+    <li className="flex items-center gap-2 py-1">
+      <span className="w-6 shrink-0 text-right font-display text-sm font-bold tabular-nums text-slate-500">{p.jersey}</span>
+      <span className={`min-w-0 truncate ${p.subbedIn ? "font-semibold text-white" : "text-slate-400"}`}>{p.name}</span>
+      <Contributions c={p.contributions} compact />
+      {p.subbedIn && (
+        <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-xs text-slate-400" title={p.cameOn?.other ? `Replaced ${p.cameOn.other.name}` : "Came on"}>
+          <ArrowUp className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3} aria-label="Came on" />
+          {p.cameOn?.minute}
+          {p.cameOn?.other && <span className="hidden truncate text-slate-500 sm:inline">for {p.cameOn.other.shortName}</span>}
+        </span>
+      )}
+    </li>
+  );
+}
+
+function TeamLineup({ side, color, view }: { side: MatchTeamDetail; color: string; view: PitchView }) {
+  const cameOn = side.substitutes.filter((p) => p.subbedIn);
+  const unused = side.substitutes.filter((p) => !p.subbedIn);
   return (
     <div className="min-w-0 space-y-4">
       <div className="flex items-center gap-3">
@@ -196,19 +324,17 @@ function TeamLineup({ side, color }: { side: MatchTeamDetail; color: string }) {
           {side.formation && <p className="font-display text-base font-bold tracking-wide text-slate-400">{side.formation}</p>}
         </div>
       </div>
-      <Pitch side={side} color={color} />
-      {side.substitutes.length > 0 && (
+      <Pitch side={side} color={color} view={view} />
+      {cameOn.length > 0 && (
         <div>
-          <p className="kicker mb-2">Substitutes</p>
-          <ul className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-sm sm:grid-cols-2">
-            {side.substitutes.map((p) => (
-              <li key={p.id || p.name} className="flex items-center gap-2">
-                <span className="w-6 text-right font-display text-sm font-bold tabular-nums text-slate-500">{p.jersey}</span>
-                <span className={`truncate ${p.subbedIn ? "font-semibold text-white" : "text-slate-400"}`}>{p.name}</span>
-                {p.subbedIn && <ArrowUp className="h-3.5 w-3.5 shrink-0 text-emerald-500" strokeWidth={3} aria-label="Came on" />}
-              </li>
-            ))}
-          </ul>
+          <p className="kicker mb-1">Came on</p>
+          <ul className="text-sm">{cameOn.map((p) => <BenchRow key={p.id || p.name} p={p} />)}</ul>
+        </div>
+      )}
+      {unused.length > 0 && (
+        <div>
+          <p className="kicker mb-1">{cameOn.length ? "Unused substitutes" : "Substitutes"}</p>
+          <ul className="grid grid-cols-1 gap-x-4 text-sm sm:grid-cols-2">{unused.map((p) => <BenchRow key={p.id || p.name} p={p} />)}</ul>
         </div>
       )}
     </div>
@@ -216,13 +342,33 @@ function TeamLineup({ side, color }: { side: MatchTeamDetail; color: string }) {
 }
 
 export function Lineups({ detail, homeColor, awayColor }: { detail: MatchDetail; homeColor: string; awayColor: string }) {
+  const [view, setView] = useState<PitchView>("start");
   if (!detail.home.starters.length && !detail.away.starters.length) {
     return <StateMessage icon={<Users className="h-5 w-5" />} title="Lineups not available" message="Starting line-ups have not been published for this match." />;
   }
+  // The "now" view only means something once substitutions can have happened.
+  const canShowNow = detail.state !== "pre";
+  const nowLabel = detail.state === "in" ? "On pitch now" : "At full time";
   return (
-    <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-      <TeamLineup side={detail.home} color={homeColor} />
-      <TeamLineup side={detail.away} color={awayColor} />
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {canShowNow ? (
+          <Segmented<PitchView> value={view} onChange={setView} options={[{ value: "start", label: "Starting XI" }, { value: "now", label: nowLabel }]} />
+        ) : (
+          <span className="kicker">Starting XI</span>
+        )}
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+          <span className="inline-flex items-center gap-1"><Ball className="h-3 w-3" /> Goal</span>
+          <span className="inline-flex items-center gap-1"><span className="inline-flex h-3.5 items-center rounded-full bg-sky-500 px-1 text-[8px] font-bold text-white">A</span> Assist</span>
+          <span className="inline-flex items-center gap-1"><span className={`${CARD} bg-yellow-400`} /> Booked</span>
+          <span className="inline-flex items-center gap-1"><span className={`${CARD} bg-red-500`} /> Sent off</span>
+        </p>
+      </div>
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+        <TeamLineup side={detail.home} color={homeColor} view={view} />
+        <TeamLineup side={detail.away} color={awayColor} view={view} />
+      </div>
+      <p className="text-xs text-slate-500">Goals, assists, cards and substitutions come from the match box score. Player ratings aren&apos;t published by our data provider, so none are shown.</p>
     </div>
   );
 }

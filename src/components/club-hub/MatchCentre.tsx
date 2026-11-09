@@ -177,7 +177,8 @@ const EVENT_STYLE: Record<string, { icon: ReactNode; tint: string }> = {
 function EventCard({ e, detail }: { e: MatchEvent; detail: MatchDetail }) {
   const team = e.side === "home" ? detail.home.team : e.side === "away" ? detail.away.team : null;
   const style = EVENT_STYLE[e.kind] ?? EVENT_STYLE["shot-off"];
-  const label = e.kind === "red" && /yellow/i.test(e.label) ? "Second yellow card" : e.label;
+  // ESPN labels every dismissal "Red Card"; its text says when it was a second booking.
+  const label = e.kind === "red" && (/yellow/i.test(e.label) || /second yellow/i.test(e.text ?? "")) ? "Second yellow card" : e.label;
   return (
     <div className="flex gap-4 border-b border-line py-3.5 pl-5 pr-2">
       <MinuteChip minute={e.minute} />

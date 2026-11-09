@@ -2,7 +2,7 @@
 import { SITE, UpstreamError, espnGet, liveLabel, toScore, toState, toTeam } from "@/lib/club-hub/espn";
 import { matchSlug } from "@/lib/match/slug";
 import type { TeamLite } from "@/lib/club-hub/types";
-import type { UclClub, UclKnockoutRound, UclMatch, UclOverview, UclScorer, UclStage, UclStandingRow, UclTie, UclZone } from "./types";
+import type { UclCleanSheetRow, UclCleanSheets, UclClub, UclKnockoutRound, UclLeader, UclLeaders, UclMatch, UclOverview, UclStage, UclStandingRow, UclTie, UclZone } from "./types";
 
 /**
  * UEFA Champions League data from ESPN's "uefa.champions" competition feeds.
@@ -144,20 +144,29 @@ async function getStandings(crests: Map<string, string>): Promise<UclStandingRow
     .sort((a, b) => a.position - b.position);
 }
 
-async function getScorers(): Promise<UclScorer[]> {
+/**
+ * ESPN's Champions League leaderboards (this season's competition only): goals and assists.
+ * Players are de-duplicated by id and ordered by value, then fewer matches, then name.
+ */
+async function getLeaders(): Promise<UclLeaders> {
   const data = await espnGet(`${UCL}/statistics`, 60 * 30);
-  const goals = (data?.stats ?? []).find((s: any) => s.name === "goalsLeaders");
-  return (goals?.leaders ?? []).slice(0, 10).map((l: any) => {
-    const matches = String(l.displayValue ?? "").match(/Matches:\s*(\d+)/);
-    return {
-      id: String(l.athlete?.id ?? ""),
-      name: l.athlete?.displayName ?? "",
-      headshot: l.athlete?.headshot?.href ?? null,
-      team: toTeam(l.athlete?.team),
-      goals: Number(l.value) || 0,
-      matches: matches ? Number(matches[1]) : null,
-    };
-  });
+  const board = (name: string): UclLeader[] => {
+    const cat = (data?.stats ?? []).find((s: any) => s.name === name);
+    const seen = new Set<string>();
+    const rows: UclLeader[] = [];
+    for (const l of cat?.leaders ?? []) {
+      const id = String(l.athlete?.id ?? "");
+      const value = Number(l.value);
+      if (!id || seen.has(id) || !Number.isFinite(value) || value <= 0) continue;
+      seen.add(id);
+      const matches = String(l.displayValue ?? "").match(/Matches:\s*(\d+)/);
+      rows.push({ id, name: l.athlete?.displayName ?? "", headshot: l.athlete?.headshot?.href ?? null, team: toTeam(l.athlete?.team), value, matches: matches ? Number(matches[1]) : null });
+    }
+    return rows.sort((a, b) => b.value - a.value || (a.matches ?? 99) - (b.matches ?? 99) || a.name.localeCompare(b.name));
+  };
+  const leaders = { goals: board("goalsLeaders"), assists: board("assistsLeaders") };
+  if (!leaders.goals.length && !leaders.assists.length) throw new UpstreamError("Champions League statistics are unavailable right now.");
+  return leaders;
 }
 
 /** Groups knockout matches into two-legged ties per stage, with aggregate scores from the real results. */
@@ -202,7 +211,7 @@ export async function getUclOverview(): Promise<UclOverview> {
   if (inFlight) return inFlight;
   inFlight = (async () => {
     const { season, logo, stages } = await getStages();
-    const [clubsRes, scorers] = await Promise.all([getClubs(), getScorers().catch(() => [] as UclScorer[])]);
+    const [clubsRes, leaders] = await Promise.all([getClubs(), getLeaders().catch(() => null)]);
     const { clubs, crests } = clubsRes;
     const standings = await getStandings(crests).catch(() => [] as UclStandingRow[]);
 
@@ -242,12 +251,96 @@ export async function getUclOverview(): Promise<UclOverview> {
       standings,
       knockout: buildKnockout(matches, stages),
       clubs,
-      scorers,
+      leaders,
     };
   })();
   try {
     return await inFlight;
   } finally {
     inFlight = null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Clean sheets. ESPN publishes no clean-sheet leaderboard, so the table is built from the
+// line-ups and scores of every completed match in this season's competition. A goalkeeper is
+// credited with a clean sheet when they started, played the whole match (not substituted off,
+// not sent off) and their team conceded no goals (extra time included; shoot-outs excluded).
+
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<PromiseSettledResult<R>[]> {
+  const out: PromiseSettledResult<R>[] = new Array(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (next < items.length) {
+        const i = next++;
+        try {
+          out[i] = { status: "fulfilled", value: await fn(items[i]) };
+        } catch (reason) {
+          out[i] = { status: "rejected", reason };
+        }
+      }
+    }),
+  );
+  return out;
+}
+
+const isKeeper = (p: any) => /^(G|GK)$/i.test(String(p?.position?.abbreviation ?? ""));
+const statOf = (p: any, name: string) => Number((p?.stats ?? []).find((s: any) => s?.name === name)?.value) || 0;
+
+let cleanSheetsInFlight: Promise<UclCleanSheets> | null = null;
+
+export async function getUclCleanSheets(): Promise<UclCleanSheets> {
+  if (cleanSheetsInFlight) return cleanSheetsInFlight;
+  cleanSheetsInFlight = (async () => {
+    const overview = await getUclOverview();
+    const completed = overview.matches.filter((m) => m.state === "post" && !/POSTPONED|CANCEL|ABANDON/.test(m.statusName));
+    const crest = new Map(overview.clubs.map((c) => [c.id, c.logo]));
+
+    // Finished matches don't change, so their summaries can be cached for hours.
+    const summaries = await mapLimit(completed, 6, (m) => espnGet(`${SITE}/all/summary?event=${m.id}`, 60 * 60 * 6));
+
+    const table = new Map<string, UclCleanSheetRow>();
+    let counted = 0;
+    summaries.forEach((res, i) => {
+      if (res.status !== "fulfilled") return;
+      const data = res.value;
+      const m = completed[i];
+      const rosters: any[] = data?.rosters ?? [];
+      if (rosters.length < 2) return;
+      counted++;
+      for (const r of rosters) {
+        const conceded = r.homeAway === "home" ? m.away.score : m.home.score;
+        if (conceded == null) continue;
+        const team = toTeam(r.team);
+        if (crest.get(team.id)) team.logo = crest.get(team.id)!;
+        for (const p of r.roster ?? []) {
+          if (!isKeeper(p) || !(p.starter || p.subbedIn)) continue;
+          const id = String(p.athlete?.id ?? "");
+          if (!id) continue;
+          const row = table.get(id) ?? { id, name: p.athlete?.displayName ?? "", team, cleanSheets: 0, appearances: 0 };
+          row.appearances++;
+          if (conceded === 0 && p.starter && !p.subbedOut && statOf(p, "redCards") === 0) row.cleanSheets++;
+          table.set(id, row);
+        }
+      }
+    });
+    if (completed.length && !counted) throw new UpstreamError("Match line-ups couldn't be loaded, so clean sheets can't be counted right now.");
+
+    const keepers = [...table.values()]
+      .filter((k) => k.cleanSheets > 0)
+      .sort((a, b) => b.cleanSheets - a.cleanSheets || a.appearances - b.appearances || a.name.localeCompare(b.name));
+    return {
+      generatedAt: new Date().toISOString(),
+      season: overview.season,
+      matchesCounted: counted,
+      matchesMissing: completed.length - counted,
+      keepers,
+    };
+  })();
+  try {
+    return await cleanSheetsInFlight;
+  } finally {
+    cleanSheetsInFlight = null;
   }
 }

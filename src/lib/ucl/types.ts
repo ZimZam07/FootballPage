@@ -61,13 +61,40 @@ export interface UclClub extends TeamLite {
   country: string | null;
 }
 
-export interface UclScorer {
+/** A player on one of ESPN's Champions League leaderboards (goals or assists). */
+export interface UclLeader {
   id: string;
   name: string;
   headshot: string | null;
   team: TeamLite;
-  goals: number;
+  /** The leaderboard's statistic: goals or assists in this season's competition. */
+  value: number;
   matches: number | null;
+}
+
+/** Competition leaderboards from ESPN, or null when ESPN's statistics couldn't be loaded. */
+export interface UclLeaders {
+  goals: UclLeader[];
+  assists: UclLeader[];
+}
+
+export interface UclCleanSheetRow {
+  id: string;
+  name: string;
+  team: TeamLite;
+  cleanSheets: number;
+  /** Matches the goalkeeper played in, among the matches counted. */
+  appearances: number;
+}
+
+export interface UclCleanSheets {
+  generatedAt: string;
+  season: string;
+  /** Completed matches whose line-ups were read. */
+  matchesCounted: number;
+  /** Completed matches whose line-ups couldn't be loaded (the table may be incomplete). */
+  matchesMissing: number;
+  keepers: UclCleanSheetRow[];
 }
 
 export interface UclOverview {
@@ -80,5 +107,5 @@ export interface UclOverview {
   standings: UclStandingRow[];
   knockout: UclKnockoutRound[];
   clubs: UclClub[];
-  scorers: UclScorer[];
+  leaders: UclLeaders | null;
 }

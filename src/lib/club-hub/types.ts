@@ -136,6 +136,32 @@ export interface LineupPlayer {
   formationPlace: number;
   subbedIn: boolean;
   subbedOut: boolean;
+  /** Headshot URL when the provider publishes one for this match; null otherwise. */
+  headshot: string | null;
+  /**
+   * This player's goals, assists and cards in this match, from the provider's per-player box score.
+   * null when the provider has not published per-player match stats (e.g. before kick-off).
+   */
+  contributions: PlayerContributions | null;
+  /** Substitution links, from the provider's substitution events (null when not published). */
+  cameOn: SubstitutionLink | null;
+  wentOff: SubstitutionLink | null;
+}
+
+export interface PlayerContributions {
+  goals: number;
+  ownGoals: number;
+  assists: number;
+  yellowCards: number;
+  redCards: number;
+  /** The red card was a second booking (from the provider's event label). */
+  secondYellow: boolean;
+}
+
+export interface SubstitutionLink {
+  minute: string;
+  /** The other player in the substitution: who they replaced (cameOn) or who replaced them (wentOff). */
+  other: { id: string; name: string; shortName: string; jersey: string | null } | null;
 }
 
 export interface MatchTeamDetail {

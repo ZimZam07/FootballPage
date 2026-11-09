@@ -13,7 +13,7 @@ const SECTION_META: Record<string, { title: string; description: string }> = {
   club: { title: "Club Hub", description: "Fixtures, live scores, match stats, line-ups, standings, squads and news for clubs in Europe's top five leagues." },
   creators: { title: "Creators", description: "Twenty football YouTube channels worth following, from Indian football to tactics and transfers." },
   big: { title: "Big Clash", description: "The matches that made football history: legendary finals, comebacks and rivalries, with official highlights." },
-  ucl: { title: "UEFA Champions League", description: "Champions League standings, fixtures, results, knockout bracket, clubs and top scorers." },
+  ucl: { title: "UEFA Champions League", description: "Champions League standings, fixtures, results, knockout bracket, clubs and top stats." },
 };
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
