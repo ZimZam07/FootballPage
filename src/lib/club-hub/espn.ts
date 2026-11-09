@@ -250,7 +250,9 @@ export async function getStandings(config: LeagueConfig): Promise<Standings> {
       goalsAgainst: stat(e, "pointsAgainst"),
       goalDifference: stat(e, "pointDifferential"),
       points: stat(e, "points"),
-      zone: e.note?.color ? { color: e.note.color, description: e.note.description ?? "" } : null,
+      deductions: Math.abs(stat(e, "deductions")) || 0,
+      // ESPN occasionally sends malformed colours such as "##B5E7CE".
+      zone: e.note?.color ? { color: `#${String(e.note.color).replace(/^#+/, "")}`, description: e.note.description ?? "" } : null,
     }))
     .sort((a, b) => a.position - b.position);
 

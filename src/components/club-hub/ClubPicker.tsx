@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { ArrowRight, Search, Star, X } from "lucide-react";
 import { useApi, useFavorites } from "@/lib/club-hub/client";
 import type { ClubRef, LeagueId, LeagueTeams } from "@/lib/club-hub/types";
+import { getLeague } from "@/lib/club-hub/leagues";
+import LeagueStandings from "./LeagueStandings";
 import { ErrorState, Skeleton, StateMessage, TeamLogo } from "./ui";
 
 const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -142,6 +144,9 @@ export default function ClubPicker({ onOpen }: { onOpen: (club: ClubRef) => void
           </div>
         )}
       </section>
+
+      {/* The selected league's table, below its clubs (hidden while searching across leagues). */}
+      {!query && <LeagueStandings league={league} leagueName={leagueName.get(league) ?? getLeague(league)?.name ?? ""} onOpen={onOpen} />}
     </div>
   );
 }

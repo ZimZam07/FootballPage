@@ -76,6 +76,8 @@ export interface StandingRow {
   goalsAgainst: number;
   goalDifference: number;
   points: number;
+  /** Points deducted by the league this season (0 when none). */
+  deductions: number;
   zone: { color: string; description: string } | null;
 }
 
