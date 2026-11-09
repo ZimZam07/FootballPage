@@ -4,6 +4,8 @@ import { useMemo, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowLeftRight, ArrowUp, CircleDashed, Clock, Goal, MapPin, ShieldOff, Target, Tv } from "lucide-react";
 import { LIVE_REFRESH_MS, competitionLabel, formatDate, useApi } from "@/lib/club-hub/client";
 import type { EventPlayer, MatchDetail, MatchEvent, TeamLite } from "@/lib/club-hub/types";
+import { leagueForCompetition } from "@/lib/club-hub/leagueIdentity";
+import { LeagueLogo } from "./LeagueIdentity";
 import { Lineups, StatBars } from "./MatchInsight";
 import { ErrorState, Skeleton, StateMessage, TeamLogo } from "./ui";
 
@@ -60,7 +62,10 @@ function Scoreboard({ detail, homeColor, awayColor }: { detail: MatchDetail; hom
       </div>
       <div className="relative p-5 sm:p-8">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
-          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-300">{competitionLabel(detail.competition)}</span>
+          <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-300">
+            {leagueForCompetition(detail.competition) && <LeagueLogo league={leagueForCompetition(detail.competition)!.id} className="h-5 w-5" />}
+            {competitionLabel(detail.competition)}
+          </span>
           <span className="text-xs text-slate-500">{formatDate(detail.date, { weekday: "short", day: "numeric", month: "short" })}</span>
         </div>
 

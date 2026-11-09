@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { competitionLabel, useApi } from "@/lib/club-hub/client";
+import { useApi } from "@/lib/club-hub/client";
 import type { ClubRef, Standings } from "@/lib/club-hub/types";
+import { standingZone, zonesIn } from "@/lib/club-hub/leagueIdentity";
+import { LeagueIdentity } from "./LeagueIdentity";
 import { ErrorState, Skeleton, TeamLogo, card } from "./ui";
 
 export default function StandingsView({ club, accent, focusClub }: { club: ClubRef; accent: string; focusClub: boolean }) {
@@ -25,14 +27,11 @@ export default function StandingsView({ club, accent, focusClub }: { club: ClubR
     );
   }
 
-  const zones = [...new Map(data.rows.filter((r) => r.zone?.description).map((r) => [r.zone!.description, r.zone!.color])).entries()];
+  const zones = zonesIn(data.rows.map((r) => r.zone?.description));
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="font-display text-2xl font-bold uppercase tracking-wide text-white">{data.leagueName}</h3>
-        <span className="text-sm text-slate-500">{competitionLabel(data.season)}</span>
-      </div>
+      <LeagueIdentity league={club.league} size="md" season={data.season} />
       <div className={`${card} ch-fade-up overflow-hidden`}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm tabular-nums">
@@ -62,7 +61,7 @@ export default function StandingsView({ club, accent, focusClub }: { club: ClubR
                   >
                     <td className="ch-sticky-cell py-3 pl-2 pr-1.5 sm:pl-6 sm:pr-2" style={{ ["--ch-cell-bg" as string]: me ? `color-mix(in srgb, ${accent} 13%, var(--ch-row-bg))` : "var(--ch-row-bg)" }}>
                       <div className="flex items-center gap-1.5 sm:gap-3">
-                        <span className="h-5 w-[3px] shrink-0" style={{ background: r.zone?.color ?? "transparent" }} title={r.zone?.description} />
+                        <span className="h-5 w-[3px] shrink-0" style={{ background: standingZone(r.zone?.description)?.color ?? "transparent" }} title={r.zone?.description} />
                         <span className="w-4 shrink-0 text-right font-display text-base font-bold text-slate-400 sm:w-6">{r.position}</span>
                         <TeamLogo src={r.team.logo} name={r.team.name} className="h-6 w-6" />
                         <span className={`block max-w-[5.5rem] truncate sm:max-w-none ${me ? "text-white" : "font-medium text-slate-200"}`}>
@@ -88,8 +87,8 @@ export default function StandingsView({ club, accent, focusClub }: { club: ClubR
       </div>
       {zones.length > 0 && (
         <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-400">
-          {zones.map(([desc, color]) => (
-            <span key={desc} className="inline-flex items-center gap-2"><span className="h-3 w-[3px]" style={{ background: color }} />{desc}</span>
+          {zones.map((z) => (
+            <span key={z.key} className="inline-flex items-center gap-2"><span className="h-3 w-[3px]" style={{ background: z.color }} />{z.label}</span>
           ))}
         </div>
       )}

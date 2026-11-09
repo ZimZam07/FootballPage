@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { ChevronLeft, Star } from "lucide-react";
 import { competitionLabel, useFavorites } from "@/lib/club-hub/client";
 import type { ClubRef } from "@/lib/club-hub/types";
+import { LeagueLogo } from "./LeagueIdentity";
 import { Skeleton, TeamLogo } from "./ui";
 
 export type ClubView = "overview" | "matches" | "news" | "standings" | "players";
@@ -75,7 +76,10 @@ export default function ClubHeader({
         <div className="relative mt-6 flex items-center gap-5 sm:gap-7">
           <TeamLogo src={club.logo} name={club.name} className="h-16 w-16 drop-shadow-[0_10px_24px_rgba(0,0,0,0.5)] sm:h-24 sm:w-24" />
           <div className="min-w-0">
-            <p className="kicker" style={{ color: onDark(accent) }}>{leagueName}</p>
+            <p className="kicker flex items-center gap-2" style={{ color: onDark(accent) }}>
+              <LeagueLogo league={club.league} className="h-4 w-4" />
+              {leagueName}
+            </p>
             <h2 className="mt-1 truncate font-display text-4xl font-extrabold uppercase leading-[0.9] text-white sm:text-6xl">{club.name}</h2>
             <div className="mt-2 text-sm text-slate-300">
               {standingSummary === undefined ? <Skeleton className="h-5 w-48" /> : <span>{formatSummary(standingSummary, leagueName)}</span>}

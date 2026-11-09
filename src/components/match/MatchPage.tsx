@@ -5,6 +5,8 @@ import { ArrowLeft, CalendarDays, Clock, MapPin } from "lucide-react";
 import { clubAccent, formatDate, formatTime, relativeTime, timeZoneLabel, useApi, useFavorites } from "@/lib/club-hub/client";
 import type { MatchDetail } from "@/lib/club-hub/types";
 import MatchCentre from "@/components/club-hub/MatchCentre";
+import { LeagueLogo } from "@/components/club-hub/LeagueIdentity";
+import { leagueForCompetition } from "@/lib/club-hub/leagueIdentity";
 import { ErrorState, Skeleton, StateMessage, TeamLogo } from "@/components/club-hub/ui";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -41,7 +43,10 @@ function Header({ m }: { m: MatchDetail }) {
       <span className="absolute inset-x-0 top-0 h-[3px]" style={{ background: live ? "#ff4b3a" : "#d4f53c" }} aria-hidden />
       <div className="relative p-6 sm:p-10">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
-          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-300">{m.competition}</span>
+          <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-300">
+            {leagueForCompetition(m.competition) && <LeagueLogo league={leagueForCompetition(m.competition)!.id} className="h-5 w-5" />}
+            {m.competition}
+          </span>
           <StatusBadge m={m} />
         </div>
 

@@ -5,6 +5,8 @@ import { ArrowRight, Search, Star, X } from "lucide-react";
 import { useApi, useFavorites } from "@/lib/club-hub/client";
 import type { ClubRef, LeagueId, LeagueTeams } from "@/lib/club-hub/types";
 import { getLeague } from "@/lib/club-hub/leagues";
+import { leagueIdentity } from "@/lib/club-hub/leagueIdentity";
+import { LeagueLogo } from "./LeagueIdentity";
 import LeagueStandings from "./LeagueStandings";
 import { ErrorState, Skeleton, StateMessage, TeamLogo } from "./ui";
 
@@ -94,11 +96,20 @@ export default function ClubPicker({ onOpen }: { onOpen: (club: ClubRef) => void
                   setLeague(l.league);
                   setQuery("");
                 }}
-                className={`relative -mb-px shrink-0 pb-3 text-sm font-semibold transition-colors ${on ? "text-white" : "text-slate-500 hover:text-slate-200"}`}
+                aria-pressed={on}
+                className={`group relative -mb-px flex shrink-0 items-center gap-2 pb-3 text-sm font-semibold transition-colors ${on ? "text-white" : "text-slate-500 hover:text-slate-200"}`}
               >
+                {/* The league's mark: full colour when selected, quietly desaturated otherwise. */}
+                <LeagueLogo
+                  league={l.league}
+                  className={`h-6 w-6 transition duration-300 ${on ? "-translate-y-px drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]" : "opacity-50 grayscale group-hover:-translate-y-px group-hover:opacity-90 group-hover:grayscale-0"}`}
+                />
                 {l.name}
-                <span className="ml-1.5 font-display text-sm text-slate-500">{l.teams.length}</span>
-                <span className={`absolute inset-x-0 -bottom-px h-0.5 origin-left bg-volt transition-transform duration-300 ${on ? "scale-x-100" : "scale-x-0"}`} />
+                <span className="font-display text-sm text-slate-500">{l.teams.length}</span>
+                <span
+                  className={`absolute inset-x-0 -bottom-px h-0.5 origin-left transition-transform duration-300 ${on ? "scale-x-100" : "scale-x-0"}`}
+                  style={{ background: leagueIdentity(l.league)?.primary ?? "var(--color-volt)" }}
+                />
               </button>
             );
           })}
