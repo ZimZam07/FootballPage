@@ -9,7 +9,7 @@ import { useClock, nowMs } from "@/lib/clock";
 import { CATEGORY_COLOR, CATEGORY_LABEL, arrange, isJustIn } from "@/lib/news/edition";
 import type { NewsCategory, NewsEdition, NewsStory } from "@/lib/news/types";
 
-export const WIRE = "#5ad1ff";
+export const ACCENT = "#5ad1ff";
 const REFRESH_MS = 10 * 60_000;
 
 // ---------------------------------------------------------------------------
@@ -58,19 +58,60 @@ function Kicker({ s, now }: { s: NewsStory; now: number }) {
           Just in
         </span>
       )}
-      <span style={{ color: CATEGORY_COLOR[s.category] }}>{CATEGORY_LABEL[s.category]}</span>
+      {/* The editorial cue (what kind of moment this is) and who it's about, then the desk. */}
+      <span style={{ color: CATEGORY_COLOR[s.category] }}>{s.hook ?? CATEGORY_LABEL[s.category]}</span>
+      {s.subject && <span className="text-slate-300">{s.subject}</span>}
       {s.transfer && <TransferStatus s={s} />}
     </p>
   );
 }
 
+/** Three clearly different badges: a done deal, a reported development, and a rumour. */
 function TransferStatus({ s }: { s: NewsStory }) {
-  return s.transfer === "confirmed" ? (
-    <span className="inline-flex items-center gap-1 text-emerald-300" title="The publisher reports a completed deal">
-      <CheckCircle2 className="h-3 w-3" /> Confirmed
+  if (s.transfer === "confirmed") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-sm bg-emerald-400/15 px-1.5 py-0.5 text-emerald-300 ring-1 ring-emerald-400/40" title="The publisher reports a completed deal">
+        <CheckCircle2 className="h-3 w-3" /> Confirmed
+      </span>
+    );
+  }
+  if (s.transfer === "reported") {
+    return (
+      <span className="rounded-sm bg-amber-400/10 px-1.5 py-0.5 text-amber-300 ring-1 ring-amber-400/30" title="Negotiations or a bid reported by the publisher; not an official announcement">
+        Reported
+      </span>
+    );
+  }
+  return (
+    <span className="rounded-sm px-1.5 py-0.5 text-slate-400 outline-1 -outline-offset-1 outline-dashed outline-slate-400/45" title="Interest or speculation; unconfirmed">
+      Rumour
     </span>
-  ) : (
-    <span className="text-slate-400" title="Reported by the publisher; not an official announcement">Reported</span>
+  );
+}
+
+/**
+ * A major retirement kept from earlier, shown with its original date so it never reads as new.
+ */
+function RetirementSpotlight({ s }: { s: NewsStory }) {
+  const date = new Date(s.published).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  return (
+    <StoryLink s={s} className="relative grid overflow-hidden rounded-md border border-[#c4b5fd]/25 bg-[#120f1a] sm:grid-cols-[16rem_minmax(0,1fr)] md:col-span-2">
+      <div className="relative aspect-[16/9] overflow-hidden sm:aspect-auto">
+        <Picture s={s} />
+        <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent to-[#120f1a]/60" aria-hidden />
+      </div>
+      <div className="flex flex-col gap-2 p-5">
+        <p className="flex flex-wrap items-center gap-x-2.5 text-[10.5px] font-semibold uppercase tracking-[0.16em]">
+          <span className="text-[#c4b5fd]">Retirement spotlight</span>
+          <span className="text-slate-300">{s.retirement === "international" ? "International retirement" : "Retirement"}</span>
+        </p>
+        <h3 className="font-display text-2xl font-bold uppercase leading-[1.02] text-white">{s.title}</h3>
+        {s.summary && <p className="text-sm leading-relaxed text-slate-400">{s.summary}</p>}
+        <p className="mt-auto pt-1 text-xs text-slate-500">
+          <span className="font-semibold text-slate-300">{s.source}</span> · First published {date}
+        </p>
+      </div>
+    </StoryLink>
   );
 }
 
@@ -239,15 +280,15 @@ function BriefCard({ s, now }: { s: NewsStory; now: number }) {
 
 // ---------------------------------------------------------------------------
 
-const ORDER: NewsCategory[] = ["transfers", "matches", "managers", "injuries", "international", "retirements", "tributes", "football"];
+const ORDER: NewsCategory[] = ["transfers", "matches", "managers", "awards", "injuries", "international", "retirements", "tributes", "football"];
 
-export default function FootballWire({ edition }: { edition: NewsEdition }) {
+export default function TimesOfFootball({ edition }: { edition: NewsEdition }) {
   const router = useRouter();
   const generated = new Date(edition.generatedAt).getTime();
   const now = useNow(generated);
   const [filter, setFilter] = useState<NewsCategory | "all">("all");
   // Arranged against the edition's timestamp, so the layout is identical on server and client.
-  const ed = useMemo(() => arrange(edition.stories, generated), [edition, generated]);
+  const ed = useMemo(() => arrange(edition.stories), [edition]);
   const counts = useMemo(() => ORDER.map((c) => [c, edition.stories.filter((s) => s.category === c).length] as const).filter(([, n]) => n > 0), [edition]);
 
   // Keep the page current: re-request the (cached) edition every ten minutes while it is visible.
@@ -267,18 +308,23 @@ export default function FootballWire({ edition }: { edition: NewsEdition }) {
     <div className="space-y-12">
       <Masthead
         index="04"
-        kicker="The Football Wire · Football news"
-        title={<>The Football<br className="hidden sm:block" /> Wire</>}
-        intro="Transfers, shocks, comebacks and the stories everyone in football is talking about, from the newsrooms of BBC Sport, The Guardian, Sky Sports and ESPN."
-        accent={WIRE}
+        kicker="Football news"
+        title={
+          // The brand keeps its own casing (the masthead is otherwise all caps); "Of" is set off in the accent.
+          <span className="normal-case tracking-[-0.01em]" aria-label="TimesOfFootball">
+            Times<span style={{ color: ACCENT }}>Of</span>Football
+          </span>
+        }
+        intro="The football stories everyone is talking about: the biggest clubs and players, done deals and transfer talk, shocks, records and farewells, from the newsrooms of BBC Sport, The Guardian, Sky Sports and ESPN."
+        accent={ACCENT}
         aside={
           <div className="space-y-1.5 lg:text-right">
             <p className="inline-flex items-center gap-2 text-sm font-semibold text-white">
-              {live && <span className="ch-live-dot h-2 w-2 rounded-full" style={{ background: WIRE }} aria-hidden />}
+              {live && <span className="ch-live-dot h-2 w-2 rounded-full" style={{ background: ACCENT }} aria-hidden />}
               Updated {ago(edition.generatedAt, now).toLowerCase()}
             </p>
             <p className="text-xs text-slate-500">
-              {edition.stories.length} stories from the last 72 hours · refreshes every 10 minutes
+              {edition.stories.length} stories worth your time from the last 72 hours · refreshes every 10 minutes
             </p>
           </div>
         }
@@ -288,7 +334,7 @@ export default function FootballWire({ edition }: { edition: NewsEdition }) {
         <StateMessage
           tone="error"
           icon={<Newspaper className="h-5 w-5" />}
-          title="The wire is quiet right now"
+          title="The newsroom is quiet right now"
           message="We couldn't reach our news sources just now. They are checked again every few minutes."
           action={
             <button onClick={() => router.refresh()} className="mt-1 inline-flex h-9 items-center gap-2 rounded-md bg-slate-100 px-4 text-sm font-semibold text-slate-950">
@@ -302,7 +348,7 @@ export default function FootballWire({ edition }: { edition: NewsEdition }) {
           <div className="ch-scrollbar-none -mx-4 -mt-4 flex gap-6 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0" role="tablist" aria-label="News desks">
             {([["all", edition.stories.length] as const, ...counts]).map(([c, n]) => {
               const on = filter === c;
-              const color = c === "all" ? WIRE : CATEGORY_COLOR[c];
+              const color = c === "all" ? ACCENT : CATEGORY_COLOR[c];
               return (
                 <button key={c} role="tab" aria-selected={on} onClick={() => setFilter(c)} className={`relative -mb-px shrink-0 pb-3 text-sm font-semibold transition-colors ${on ? "text-white" : "text-slate-500 hover:text-slate-200"}`}>
                   {c === "all" ? "All stories" : CATEGORY_LABEL[c]}
@@ -332,7 +378,7 @@ export default function FootballWire({ edition }: { edition: NewsEdition }) {
               )}
 
               {ed.latest.length > 0 && (
-                <Desk kicker="Just in" title="Latest from the wire" accent="#ff5a4f">
+                <Desk kicker="Just in" title="The latest" accent="#ff5a4f">
                   <div className="ch-scrollbar-none -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
                     {ed.latest.map((s) => <ReelCard key={s.id} s={s} now={now} />)}
                   </div>
@@ -340,7 +386,7 @@ export default function FootballWire({ edition }: { edition: NewsEdition }) {
               )}
 
               {ed.transfers.length > 0 && (
-                <Desk kicker="Transfer centre" title="Deals, bids and whispers" accent="#f5b83d" note="Confirmed means the publisher reports a completed deal. Everything else is reported interest or negotiation.">
+                <Desk kicker="Transfer centre" title="Deals, bids and whispers" accent="#f5b83d" note="Confirmed: the publisher reports a completed deal. Reported: talks, bids or agreements in principle. Rumour: interest or speculation.">
                   <div className="grid gap-4 md:grid-cols-2">
                     {ed.transfers.map((s) => <TransferCard key={s.id} s={s} now={now} />)}
                   </div>
@@ -348,16 +394,17 @@ export default function FootballWire({ edition }: { edition: NewsEdition }) {
               )}
 
               {ed.world.length > 0 && (
-                <Desk kicker="Around the football world" title="Beyond the Premier League" accent={WIRE}>
+                <Desk kicker="Around the football world" title="Beyond the Premier League" accent={ACCENT}>
                   <div className="grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
                     {ed.world.map((s) => <FeatureCard key={s.id} s={s} now={now} />)}
                   </div>
                 </Desk>
               )}
 
-              {ed.people.length > 0 && (
-                <Desk kicker="Players & clubs" title="In the dugout and the treatment room" accent="#ff7a59">
-                  <div className="grid gap-x-10 md:grid-cols-2">
+              {(ed.people.length > 0 || edition.retirementSpotlight) && (
+                <Desk kicker="Players & clubs" title="Dugouts, honours and farewells" accent="#ff7a59">
+                  <div className="grid gap-x-10 gap-y-4 md:grid-cols-2">
+                    {edition.retirementSpotlight && <RetirementSpotlight s={edition.retirementSpotlight} />}
                     {ed.people.map((s) => <RowCard key={s.id} s={s} now={now} />)}
                   </div>
                 </Desk>
@@ -374,8 +421,9 @@ export default function FootballWire({ edition }: { edition: NewsEdition }) {
           )}
 
           <p className="border-t border-line pt-5 text-xs leading-relaxed text-slate-500">
-            Headlines, summaries and pictures belong to their publishers ({working.join(", ") || "none available"}); every story opens the original article. Categories are assigned automatically
-            from each headline.
+            Headlines, summaries and pictures belong to their publishers ({working.join(", ") || "none available"}); every story opens the original article. Stories are chosen and
+            categorised automatically from each headline: the cue above a headline only describes what the headline reports.
+            {edition.filtered > 0 && <> {edition.filtered} lower-interest items were left out today.</>}
             {failed.length > 0 && <span className="text-amber-400/90"> {failed.join(" and ")} couldn&apos;t be reached on the last update.</span>}
           </p>
         </>

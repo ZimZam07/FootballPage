@@ -58,7 +58,7 @@ export const tabs: { id: string; label: string; hint: string; icon: (cls: string
   },
   { id: "club", label: "Club Hub", hint: "Your club's dashboard", icon: (cls) => <Shield className={cls} strokeWidth={1.75} /> },
   { id: "ucl", label: "UEFA Champions League", hint: "Standings, fixtures and knockouts", icon: (cls) => <StarballIcon className={cls} /> },
-  { id: "news", label: "The Football Wire", hint: "The latest football news and transfers", icon: (cls) => <Newspaper className={cls} strokeWidth={1.75} /> },
+  { id: "news", label: "TimesOfFootball", hint: "Football news, transfers and the big stories", icon: (cls) => <Newspaper className={cls} strokeWidth={1.75} /> },
   { id: "big", label: "Big Clash", hint: "The matches that made history", icon: (cls) => <Swords className={cls} strokeWidth={1.75} /> },
   { id: "creators", label: "Creators", hint: "Football creators worth following", icon: (cls) => <Clapperboard className={cls} strokeWidth={1.75} /> },
 ];

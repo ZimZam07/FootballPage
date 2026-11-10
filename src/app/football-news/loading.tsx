@@ -1,6 +1,6 @@
 import { Skeleton } from "@/components/club-hub/ui";
 
-/** Shown while the Wire's latest edition is being put together. */
+/** Shown while TimesOfFootball's latest edition is being put together. */
 export default function Loading() {
   return (
     <div className="min-h-screen bg-ink">

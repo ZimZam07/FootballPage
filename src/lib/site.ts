@@ -8,7 +8,7 @@ export const SITE_DESCRIPTION =
 /** Home-page sections that are linkable via ?tab= (order used by the sitemap). */
 export const SECTION_TABS = ["live", "club", "ucl", "big", "creators"] as const;
 
-/** The Football Wire has its own route; every other section lives on the home page. */
+/** TimesOfFootball (football news) has its own route; every other section lives on the home page. */
 export const NEWS_PATH = "/football-news";
 
 /** Where a primary-navigation section lives. */

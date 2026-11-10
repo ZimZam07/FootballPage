@@ -21,7 +21,7 @@ export default function HomeClient({ bigFilters, coverDay }: { bigFilters?: Part
   const urlTab = useSearchParams().get("tab") as HomeTab | null;
   const activeTab: HomeTab = urlTab && HOME_TABS.includes(urlTab) ? urlTab : "live";
   const setActiveTab = (tab: string) => {
-    // The Football Wire is its own page; the other sections swap in place.
+    // TimesOfFootball is its own page; the other sections swap in place.
     if (tab === "news") return router.push(NEWS_PATH);
     // Pass null (not window.history.state) so Next treats this as a URL change and updates useSearchParams.
     window.history.replaceState(null, "", tab === "live" ? "/" : `/?tab=${tab}`);

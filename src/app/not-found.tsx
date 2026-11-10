@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Page not found" };
 const SECTIONS = [
   { href: "/?tab=club", label: "Club Hub", hint: "Your club's dashboard" },
   { href: "/?tab=ucl", label: "Champions League", hint: "Standings, fixtures and knockouts" },
-  { href: "/football-news", label: "The Football Wire", hint: "The latest football news and transfers" },
+  { href: "/football-news", label: "TimesOfFootball", hint: "Football news, transfers and the big stories" },
   { href: "/?tab=big", label: "Big Clash", hint: "The matches that made history" },
   { href: "/?tab=creators", label: "Creators", hint: "Football channels worth following" },
 ];

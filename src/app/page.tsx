@@ -46,7 +46,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 /** Reads the Big Clash archive filters from the URL so links and the back button restore them. */
 export default async function Page({ searchParams }: Props) {
   const sp = await searchParams;
-  // The Football Wire has its own page; keep old-style links working.
+  // TimesOfFootball has its own page; keep old-style links working.
   if (one(sp.tab) === "news") redirect(NEWS_PATH);
   const bclub = one(sp.bclub);
   // Big Clash archive filters (prefixed params, validated against the archive's own lists).

@@ -1,8 +1,41 @@
 import { decode, tag } from "@/lib/club-hub/news";
 import type { NewsEdition, NewsSource, NewsStory } from "./types";
+import { MIN_SCORE, assess } from "./relevance";
+import { latestRetirementSpotlight } from "./retirements";
 
 /**
- * The Football Wire's sources: public football feeds from four established newsrooms. Headlines
+ * A short, factual editorial cue shown above the publisher's headline. It only names what the
+ * headline itself says happened (a done deal, a sacking, a record), never adds facts or drama.
+ */
+function hookFor(s: Pick<NewsStory, "category" | "transfer" | "retirement" | "title">, signal: string | null): string | null {
+  if (s.category === "tributes") return "In memoriam";
+  if (s.category === "retirements") return s.retirement === "international" ? "International farewell" : "Retirement";
+  if (s.category === "transfers") return s.transfer === "confirmed" ? "Done deal" : s.transfer === "reported" ? "Transfer talks" : "Transfer whispers";
+  if (s.category === "managers") {
+    // A change only when the headline reports it as done; hedged ones ("expected to sack") are pressure.
+    const done = /\b(sack|sacks|sacked|dismiss(?:es|ed)|appoint(?:s|ed)|resign(?:s|ed)|new (?:manager|head coach|boss)|named (?:as )?(?:new )?(?:manager|head coach|boss))\b/i.test(s.title);
+    const hedged = /\b(likely|expected|set to|poised|could|would|may|might|consider(?:s|ing)?|candidate|frontrunner|favourite|risk|doubt|future|pressure|mulls?|weigh(?:s|ing)?|talks)\b|\?/i.test(s.title);
+    return done && !hedged ? "Change in the dugout" : "Pressure in the dugout";
+  }
+  if (s.category === "injuries") return "Injury news";
+  switch (signal) {
+    case "honour":
+      return "Awards";
+    case "record":
+      return "Record books";
+    case "drama":
+      return /\bcomeback|fight back\b/i.test(s.title) ? "Comeback" : /\bstun|shock|upset\b/i.test(s.title) ? "Shock result" : "Drama";
+    case "stakes":
+      return "Big game";
+    case "controversy":
+      return "Talking point";
+    default:
+      return null;
+  }
+}
+
+/**
+ * TimesOfFootball's sources: public football feeds from four established newsrooms. Headlines
  * are the publishers' own and every story links to the original article. Feeds are cached for ten
  * minutes, so visitors never trigger an upstream request each; a failing source is skipped.
  */
@@ -10,7 +43,7 @@ const REFRESH_SECONDS = 60 * 10;
 const MAX_AGE_HOURS = 72;
 const UA = "Mozilla/5.0 (compatible; FootballHub/1.0; +https://footballhub-live.vercel.app)";
 
-type Raw = Omit<NewsStory, "id" | "category" | "transfer" | "world">;
+type Raw = Omit<NewsStory, "id" | "category" | "transfer" | "world" | "retirement" | "score" | "hook" | "subject" | "spotlight">;
 
 /** The fields we read from ESPN's news API. */
 interface EspnArticle {
@@ -111,30 +144,41 @@ const RX = {
   transfer: /\b(transfers?|signs?|signing|signed|joins?|joined|on loan|loan (move|deal|spell)|bid for|release clause|swoop|transfer fee|contract|new deal|pre-contract|wants? to sign|set to join|linked with|watchlist|(close|closing) in on|agree(s|d)? (a )?(fee|deal|terms))\b|[£€$]\s?\d+(\.\d+)?\s?(m|bn)\b/i,
   // Changes in charge and in the boardroom (not every quote from a "boss").
   manager: /\b(sack(s|ed|ing)?|appoint(s|ed|ment)?|interim (boss|manager|coach)|resign(s|ed|ation)?|replacement|takeover|ownership|new (manager|head coach|boss)|(manager|head coach|boss)('s)? (future|job|post|role)|job (on the line|security|race)|leading candidate)\b/i,
-  injury: /\b(injur(y|ed|ies)|ruled out|surgery|acl|hamstring|sidelined|fitness (doubt|blow|concern)|out for (the )?season|scan)\b/i,
+  // A player "ruled out of" a game, not a goal "ruled out" by VAR; "(knee)"-style notes count.
+  injury: /\b(injur(y|ed|ies)|ruled out of|surgery|acl|hamstring|sidelined|fitness (doubt|blow|concern)|out for (the )?season|scan)\b|\((knee|ankle|hamstring|groin|calf|thigh|foot|back|illness)\)/i,
   international: /\b(world cup|euro 20\d\d|nations league|qualif(y|ier|iers|ying|ication)|international (break|duty|retirement)|national team|afcon|copa am[eé]rica|friendl(y|ies)|olympic)\b|\b(england|scotland|wales|northern ireland|republic of ireland|brazil|argentina|france|germany|spain|portugal|italy|netherlands|nigeria|usmnt|mexico|india)('s)? (squad|boss|coach|manager|call-?up)\b|\b(u2[13]|under-2[13]) squad\b/i,
   match: /\b(\d+-\d+|win(s|ning)?|won|beat(s|en)?|draw(s|n)?|held|rescue(s|d)?|edge(s|d)?|sink(s)?|hammer(s|ed)?|defeat(s|ed)?|thrash(es|ed)?|comeback|fight back|stun(s|ned)?|late (winner|goal|equaliser)|stoppage[- ]time|equalis(er|es|ed)|winner|scores?|scored|brace|double|hat-trick|victory|thriller|rout(s|ed)?|title race|derby|knocked out|through to|semi-final|quarter-?final|play-?offs?|relegation|promotion|clean sheet|vital win|on target)\b/i,
 };
-const CONFIRMED = /\b(signs?|signed|joins?|joined|completes?|completed|confirm(s|ed)|unveil(s|ed)|agrees? new (contract|deal)|extends? (his |her )?contract|pens new)\b/i;
-const SPECULATIVE = /\b(could|would|might|set to|close to|closing in|nearing|eye(s|ing)?|wants?|interest(ed)?|considering|consider|in talks|talks|bid|target(s|ed|ing)?|linked|race|plan(s|ning)?|monitor(s|ing)?|rumou?rs?|reportedly|weigh(s|ing)?|gossip|keen|approach(ed)?|open to|\?)/i;
+/** A deal the publisher reports as done. */
+const CONFIRMED = /\b(here we go|signs?|signed|joins?|joined|completes?|completed|confirm(s|ed)|unveil(s|ed)|agrees? new (contract|deal)|extends? (his |her )?contract|pens new)\b/i;
+/** Any hedge means it isn't done. */
+const SPECULATIVE = /\b(could|would|might|set to|close to|closing in|nearing|eye(s|ing)?|wants?|interest(ed)?|considering|consider|in talks|talks|bid|target(s|ed|ing)?|linked|race|plan(s|ning)?|monitor(s|ing)?|rumou?rs?|reportedly|weigh(s|ing)?|gossip|keen|approach(ed)?|open to|watchlist|papers)\b|\?/i;
+/** Speculation about interest, without negotiations or a bid: a rumour. */
+const RUMOUR = /\b(linked|interest(ed)?|eye(s|ing)?|wants?|watchlist|monitor(s|ing)?|consider(s|ing)?|keen|rumou?rs?|gossip|papers|could|might|target(s|ed|ing)?)\b|\?/i;
+const AWARD = /\b(ballon d['’]or|golden boy|golden boot|fifpro|the best|player of the (month|year|season)|manager of the (month|year|season)|team of the (year|season)|world (11|xi)|record-breaking|breaks? (his|her|the|a) record|sets? (a )?record|milestone)\b/i;
+const INTERNATIONAL_RETIREMENT = /\binternational (football|duty|career|retirement)\b|\b(retires?|retirement|farewell) from (international|his country|her country|the national team)\b|\bnational team\b|\b(Portugal|Argentina|Brazil|France|England|Spain|Germany|Italy|Netherlands|Belgium|Croatia|Uruguay|Poland|Wales|Scotland)\b/i;
 /** Football beyond England: other leagues, clubs, continents and international football. */
 const WORLD = /\b(la ?liga|serie a|bundesliga|ligue 1|eredivisie|mls|liga mx|saudi pro league|saudi|brazil(ian)?|argentin(a|e)|africa(n)?|afcon|asia(n)?|j-league|a-league|copa|libertadores|real madrid|barcelona|atl[eé]tico|bayern|dortmund|psg|paris saint-germain|juventus|inter milan|internazionale|ac milan|napoli|roma|benfica|porto|ajax|celtic|rangers|al-?hilal|al-?nassr|inter miami|world cup|uefa|fifa|nations league|nigeria|ghana|morocco|egypt|japan|korea|australia|usmnt|mexico|canada|india(n)?|isl)\b/i;
 
-function categorise(s: Raw): Pick<NewsStory, "category" | "transfer" | "world"> {
+function categorise(s: Raw): Pick<NewsStory, "category" | "transfer" | "world" | "retirement"> {
   const text = `${s.title} ${s.summary ?? ""}`;
   const head = s.title;
   const world = WORLD.test(text);
   // Most specific first: a death or retirement outranks everything; an injury or a sacking
   // outranks the transfer talk that often rides along in the same headline.
   if (RX.tribute.test(head)) return { category: "tributes", world };
-  if (RX.retirement.test(head)) return { category: "retirements", world };
+  if (RX.retirement.test(head) && !/\b(rules? out|not (?:ready|going) to|won't|will not|no plans to|denies)\b/i.test(head)) {
+    return { category: "retirements", world, retirement: INTERNATIONAL_RETIREMENT.test(text) ? "international" : "professional" };
+  }
   if (RX.injury.test(head)) return { category: "injuries", world };
   if (RX.manager.test(head)) return { category: "managers", world };
-  if (RX.transfer.test(head) || /\bgossip\b/i.test(head)) {
-    // Only a completed move, signing or contract the publisher reports as done counts as confirmed.
-    const transfer = CONFIRMED.test(head) && !SPECULATIVE.test(head) ? "confirmed" : "reported";
+  if (RX.transfer.test(head) || /\b(gossip|here we go)\b/i.test(head)) {
+    // Confirmed only when the publisher reports a completed deal; interest alone is a rumour;
+    // everything in between (talks, bids, agreements in principle) is reported.
+    const transfer = CONFIRMED.test(head) && !SPECULATIVE.test(head) ? "confirmed" : RUMOUR.test(head) ? "rumour" : "reported";
     return { category: "transfers", transfer, world };
   }
+  if (AWARD.test(head)) return { category: "awards", world };
   if (RX.international.test(head)) return { category: "international", world: true };
   if (RX.match.test(head)) return { category: "matches", world };
   return { category: "football", world };
@@ -204,8 +248,9 @@ const richness = (s: Raw) => (s.image ? 2 : 0) + (s.summary ? 1 : 0);
 
 let inFlight: Promise<NewsEdition> | null = null;
 
-export async function getFootballNews(): Promise<NewsEdition> {
-  if (inFlight) return inFlight;
+/** `keepAll` returns every assessed story (for editorial analysis scripts); the site never uses it. */
+export async function getFootballNews(opts: { keepAll?: boolean } = {}): Promise<NewsEdition> {
+  if (inFlight && !opts.keepAll) return inFlight;
   inFlight = (async () => {
     const results = await Promise.allSettled(SOURCES.map((s) => s.load()));
     const cutoff = Date.now() - MAX_AGE_HOURS * 3600_000;
@@ -230,13 +275,28 @@ export async function getFootballNews(): Promise<NewsEdition> {
       kept.push(entry);
     }
 
-    const stories: NewsStory[] = kept
-      .map(({ s }) => ({ ...s, id: `${s.source}:${s.url}`, ...categorise(s) }))
-      .sort((a, b) => +new Date(b.published) - +new Date(a.published));
+    const now = Date.now();
+    const assessed: NewsStory[] = kept.map(({ s }) => {
+      const cat = categorise(s);
+      const a = assess(s.title, s.summary, (now - new Date(s.published).getTime()) / 3600_000, s.rank);
+      const story = { ...s, ...cat, id: `${s.source}:${s.url}`, score: a.score, subject: a.subject, hook: null as string | null };
+      story.hook = hookFor(story, a.signal);
+      return story;
+    });
+    // Editorial bar: fewer, better stories. Low-interest items are dropped rather than padded in.
+    const stories = assessed.filter((s) => opts.keepAll || s.score >= MIN_SCORE).sort((a, b) => +new Date(b.published) - +new Date(a.published));
+
+    // Retirement spotlight: a fresh, major retirement in today's news takes the slot itself;
+    // otherwise the most recent verified one is kept, with its original date.
+    const freshRetirement = stories.find((s) => s.category === "retirements" && s.score >= MIN_SCORE + 4);
+    const verified = latestRetirementSpotlight(now);
+    const retirementSpotlight = freshRetirement || !verified || stories.some((s) => s.url === verified.url) ? null : verified;
 
     return {
       generatedAt: new Date().toISOString(),
       stories,
+      retirementSpotlight,
+      filtered: assessed.length - stories.length,
       sources: SOURCES.map((s, i) => {
         const r = results[i];
         return { name: s.name, ok: r.status === "fulfilled", count: stories.filter((x) => x.source === s.name).length };
