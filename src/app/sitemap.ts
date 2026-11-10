@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { ARCHIVE } from "@/lib/big-clash/archive";
-import { NEWS_PATH, SECTION_TABS, SITE_URL } from "@/lib/site";
+import { NEWS_PATH, SECTION_TABS, SITE_URL, WATCH_LIVE_PATH } from "@/lib/site";
 
 /**
  * The homepage, each section, and every Big Clash archive page. Live ESPN match pages are
@@ -8,7 +8,7 @@ import { NEWS_PATH, SECTION_TABS, SITE_URL } from "@/lib/site";
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
-  const sections = SECTION_TABS.filter((t) => t !== "live").map((t) => ({
+  const sections = SECTION_TABS.map((t) => ({
     url: `${SITE_URL}/?tab=${t}`,
     lastModified: now,
     changeFrequency: (t === "big" || t === "creators" ? "weekly" : "daily") as "weekly" | "daily",
@@ -21,5 +21,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }));
   const news = { url: `${SITE_URL}${NEWS_PATH}`, lastModified: now, changeFrequency: "hourly" as const, priority: 0.9 };
-  return [{ url: SITE_URL, lastModified: now, changeFrequency: "daily", priority: 1 }, news, ...sections, ...archive];
+  const live = { url: `${SITE_URL}${WATCH_LIVE_PATH}`, lastModified: now, changeFrequency: "weekly" as const, priority: 0.8 };
+  return [{ url: SITE_URL, lastModified: now, changeFrequency: "daily", priority: 1 }, live, news, ...sections, ...archive];
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { Clapperboard, MonitorPlay, Newspaper, Shield, Swords } from "lucide-react";
 
 interface NavbarProps {
@@ -101,17 +102,21 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
   const indicator = useRef<HTMLSpanElement>(null);
   const hover = useRef<HTMLSpanElement>(null);
   const items = useRef<Record<string, HTMLButtonElement | null>>({});
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  const active = tabs.find((t) => t.id === activeTab) ?? tabs[0];
+  // The landing page has no active section.
+  const active = tabs.find((t) => t.id === activeTab) ?? null;
 
   // Always delegate: on match pages the "active" tab still navigates back to its section.
   const go = (id: string) => {
     setMenuOpen(false);
     setActiveTab(id);
   };
+  // The brand always leads home: the landing page.
   const goHome = () => {
-    go("live");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setMenuOpen(false);
+    if (window.location.pathname === "/" && !window.location.search) window.scrollTo({ top: 0, behavior: "smooth" });
+    else router.push("/");
   };
 
   // Keep the active underline glued to the active tab — on change, resize, breakpoint and font load.
@@ -216,7 +221,7 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
 
         {/* Mobile: current section + menu button */}
         <div className="flex items-center gap-3 md:hidden">
-          <span className="hidden max-w-[9rem] truncate text-xs font-semibold uppercase tracking-wider text-slate-400 min-[400px]:block">{active.label}</span>
+          <span className="hidden max-w-[9rem] truncate text-xs font-semibold uppercase tracking-wider text-slate-400 min-[400px]:block">{active?.label ?? "Home"}</span>
           <button
             onClick={() => setMenuOpen((o) => !o)}
             aria-expanded={menuOpen}

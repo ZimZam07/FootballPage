@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { NEWS_PATH } from "@/lib/site";
+import { WATCH_LIVE_PATH, sectionHref } from "@/lib/site";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ClubHub from "@/components/club-hub/ClubHub";
@@ -21,10 +21,14 @@ export default function HomeClient({ bigFilters, coverDay }: { bigFilters?: Part
   const urlTab = useSearchParams().get("tab") as HomeTab | null;
   const activeTab: HomeTab = urlTab && HOME_TABS.includes(urlTab) ? urlTab : "live";
   const setActiveTab = (tab: string) => {
-    // TimesOfFootball is its own page; the other sections swap in place.
-    if (tab === "news") return router.push(NEWS_PATH);
-    // Pass null (not window.history.state) so Next treats this as a URL change and updates useSearchParams.
-    window.history.replaceState(null, "", tab === "live" ? "/" : `/?tab=${tab}`);
+    // Watch Live (/watch-live) and TimesOfFootball (/football-news) have their own routes, and the
+    // landing page owns "/": anything that changes the page is a real navigation.
+    const here = window.location.pathname;
+    const target = sectionHref(tab);
+    if (tab === "news" || (tab === "live" && here !== WATCH_LIVE_PATH) || (tab !== "live" && here !== "/")) return router.push(target);
+    // Sections on the same page swap in place. Pass null (not window.history.state) so Next treats
+    // this as a URL change and updates useSearchParams.
+    window.history.replaceState(null, "", target);
   };
 
   return (
