@@ -12,7 +12,7 @@ import { getEspnNews } from "./espn";
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
 
-function decode(text: string): string {
+export function decode(text: string): string {
   return text
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
     .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
@@ -21,7 +21,7 @@ function decode(text: string): string {
     .trim();
 }
 
-const tag = (xml: string, name: string) => {
+export const tag = (xml: string, name: string) => {
   const m = xml.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`));
   return m ? decode(m[1]) : null;
 };

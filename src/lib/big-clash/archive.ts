@@ -54,8 +54,23 @@ export interface ArchiveFilters {
   era: EraId | "all";
   category: Category | "all";
   rivalry: string | "all";
+  /** A club from the archive (TEAMS key): only matches it played in. */
+  club: string | "all";
 }
-export const NO_FILTERS: ArchiveFilters = { q: "", group: "all", era: "all", category: "all", rivalry: "all" };
+export const NO_FILTERS: ArchiveFilters = { q: "", group: "all", era: "all", category: "all", rivalry: "all", club: "all" };
+
+/**
+ * Archive clubs by ESPN team id. Club Hub favourites are ESPN teams and archive crests are ESPN
+ * crests, so a favourite maps to its archive club exactly, never by guessing from names.
+ */
+const ARCHIVE_CLUB_BY_ESPN = new Map(
+  Object.entries(TEAMS).flatMap(([key, t]) => {
+    const id = !t.national && t.logo.match(/\/teamlogos\/soccer\/500\/(\d+)\.png$/)?.[1];
+    return id ? [[id, key] as const] : [];
+  }),
+);
+export const archiveClubForEspnId = (id: string) => ARCHIVE_CLUB_BY_ESPN.get(id);
+export const clubMatchCount = (key: string) => ARCHIVE.filter((m) => m.home === key || m.away === key).length;
 
 const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -76,12 +91,14 @@ export function filterArchive(f: ArchiveFilters): HistoricMatch[] {
     if (era && (year(m) < era.from || year(m) > era.to)) return false;
     if (f.category !== "all" && !m.categories.includes(f.category)) return false;
     if (f.rivalry !== "all" && m.rivalry !== f.rivalry) return false;
+    if (f.club !== "all" && m.home !== f.club && m.away !== f.club) return false;
     const hay = HAY.get(m.slug)!;
     return terms.every((t) => hay.includes(t));
   });
 }
 
-export const isFiltering = (f: ArchiveFilters) => f.q.trim() !== "" || f.group !== "all" || f.era !== "all" || f.category !== "all" || f.rivalry !== "all";
+export const isFiltering = (f: ArchiveFilters) =>
+  f.q.trim() !== "" || f.group !== "all" || f.era !== "all" || f.category !== "all" || f.rivalry !== "all" || f.club !== "all";
 
 export const rivalryMatches = (r: Rivalry) => ARCHIVE.filter((m) => m.rivalry === r.id).sort((a, b) => a.date.localeCompare(b.date));
 

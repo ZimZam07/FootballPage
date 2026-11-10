@@ -47,7 +47,7 @@ function Header({ data }: { data: UclOverview | undefined }) {
           )}
           <div className="min-w-0">
             <p className="kicker flex items-center gap-3">
-              <span className="font-display text-sm font-bold tracking-[0.08em]" style={{ color: SILVER }}>05</span>
+              <span className="font-display text-sm font-bold tracking-[0.08em]" style={{ color: SILVER }}>03</span>
               <span className="h-px w-6 opacity-60" style={{ background: SILVER }} aria-hidden />
               UEFA
             </p>

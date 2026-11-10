@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { sectionHref } from "@/lib/site";
 import type { CSSProperties } from "react";
 import { ArrowLeft, ArrowUpRight, Play, VideoOff } from "lucide-react";
 import { formatHistoricDate, getRivalry, relatedMatches, team, year } from "@/lib/big-clash/archive";
@@ -151,7 +152,7 @@ export default function HistoricMatchView({ m }: { m: HistoricMatch }) {
   const related = relatedMatches(m);
   return (
     <div className="min-h-screen bg-ink text-slate-100">
-      <Navbar activeTab="big" setActiveTab={(t) => router.push(t === "live" ? "/" : `/?tab=${t}`)} />
+      <Navbar activeTab="big" setActiveTab={(t) => router.push(sectionHref(t))} />
       <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 lg:px-8">
         <button
           onClick={() => {

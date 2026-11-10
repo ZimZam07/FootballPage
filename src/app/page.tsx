@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import HomeClient from "@/components/HomeClient";
 import { SITE_DESCRIPTION, SITE_TITLE } from "@/lib/site";
+import { redirect } from "next/navigation";
 import { CATEGORIES, COMPETITION_GROUPS, ERAS, RIVALRIES, type ArchiveFilters } from "@/lib/big-clash/archive";
+import { todayUtc } from "@/lib/big-clash/cover";
+import { TEAMS } from "@/data/big-clash/teams";
+import { NEWS_PATH } from "@/lib/site";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -12,7 +16,7 @@ const SECTION_META: Record<string, { title: string; description: string }> = {
   live: { title: "Watch Live Matches", description: "Football streaming websites to explore match coverage across the web." },
   club: { title: "Club Hub", description: "Fixtures, live scores, match stats, line-ups, standings, squads and news for clubs in Europe's top five leagues." },
   creators: { title: "Creators", description: "Twenty football YouTube channels worth following, from Indian football to tactics and transfers." },
-  big: { title: "Big Clash", description: "The matches that made football history: legendary finals, comebacks and rivalries, with official highlights." },
+  big: { title: "Big Clash", description: "The matches that made football history: legendary finals, comebacks and rivalries, with official highlights and a new cover story every day." },
   ucl: { title: "UEFA Champions League", description: "Champions League standings, fixtures, results, knockout bracket, clubs and top stats." },
 };
 
@@ -42,6 +46,9 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 /** Reads the Big Clash archive filters from the URL so links and the back button restore them. */
 export default async function Page({ searchParams }: Props) {
   const sp = await searchParams;
+  // The Football Wire has its own page; keep old-style links working.
+  if (one(sp.tab) === "news") redirect(NEWS_PATH);
+  const bclub = one(sp.bclub);
   // Big Clash archive filters (prefixed params, validated against the archive's own lists).
   const bcomp = one(sp.bcomp), bera = one(sp.bera), bcat = one(sp.bcat), briv = one(sp.briv);
   const bigFilters: Partial<ArchiveFilters> = {
@@ -50,7 +57,9 @@ export default async function Page({ searchParams }: Props) {
     era: ERAS.some((e) => e.id === bera) ? (bera as ArchiveFilters["era"]) : "all",
     category: bcat && bcat in CATEGORIES ? (bcat as ArchiveFilters["category"]) : "all",
     rivalry: RIVALRIES.some((r) => r.id === briv) ? briv! : "all",
+    club: bclub && bclub in TEAMS ? bclub : "all",
   };
 
-  return <HomeClient bigFilters={bigFilters} />;
+  // The day (UTC) the cover story is chosen for, fixed at render so server and client agree.
+  return <HomeClient bigFilters={bigFilters} coverDay={todayUtc()} />;
 }

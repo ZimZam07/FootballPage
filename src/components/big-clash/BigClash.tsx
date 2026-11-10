@@ -2,25 +2,28 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUpRight, ChevronDown, Search, Shuffle, X } from "lucide-react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { ArrowDown, ArrowUpRight, ChevronDown, Search, Shuffle, Star, X } from "lucide-react";
 import {
   ARCHIVE, CATEGORIES, COMPETITION_GROUPS, ERAS, NO_FILTERS, RIVALRIES,
-  filterArchive, formatHistoricDate, groupLabel, isFiltering, rivalryMatches, team, year,
+  archiveClubForEspnId, clubMatchCount, filterArchive, formatHistoricDate, groupLabel, isFiltering, rivalryMatches, team, year,
   type ArchiveFilters,
 } from "@/lib/big-clash/archive";
+import { coverFor, utcDay } from "@/lib/big-clash/cover";
+import { nowMs, useClock } from "@/lib/clock";
 import type { Category, CompetitionGroup, HistoricMatch, Rivalry } from "@/lib/big-clash/types";
+import { useFavorites } from "@/lib/club-hub/client";
 import { Modal, StateMessage, TeamLogo } from "@/components/club-hub/ui";
+import { LeagueLogo } from "@/components/club-hub/LeagueIdentity";
 import Masthead from "@/components/Masthead";
 import { ComebackCard, CoverStory, EuropeanNightCard, FILM_RED, FinalCard, MatchPoster, Reveal, matchHref, shade } from "./parts";
 
 /** URL parameter names (prefixed so they never collide with other sections'). */
-export const BIG_PARAMS = { q: "bq", group: "bcomp", era: "bera", category: "bcat", rivalry: "briv" } as const;
+export const BIG_PARAMS = { q: "bq", group: "bcomp", era: "bera", category: "bcat", rivalry: "briv", club: "bclub" } as const;
 
 const byCat = (c: Category) => ARCHIVE.filter((m) => m.categories.includes(c));
 const firstYear = Math.min(...ARCHIVE.map(year));
 const lastYear = Math.max(...ARCHIVE.map(year));
-const COVER = "ac-milan-liverpool-2005-istanbul";
 
 // ---------------------------------------------------------------------------
 // Browse controls
@@ -87,7 +90,89 @@ function BrowseBar({ f, set, count }: { f: ArchiveFilters; set: (p: Partial<Arch
           )}
         </div>
       </div>
-      {isFiltering(f) && <p className="mt-2 text-xs text-slate-400" aria-live="polite">{count} {count === 1 ? "match" : "matches"} found</p>}
+      {isFiltering(f) && (
+        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400" aria-live="polite">
+          {count} {count === 1 ? "match" : "matches"} found
+          {f.club !== "all" && (
+            <button onClick={() => set({ club: "all" })} className="inline-flex items-center gap-1.5 rounded border border-[#efe4cc]/30 px-2 py-0.5 text-[#efe4cc] transition hover:border-[#efe4cc]/60" aria-label={`Remove ${team(f.club).name} filter`}>
+              <TeamLogo src={team(f.club).logo} name={team(f.club).name} className="h-3.5 w-3.5" /> Matches involving {team(f.club).name} <X className="h-3 w-3" />
+            </button>
+          )}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Your clubs: Club Hub favourites (same browser store), one tap from their history.
+
+const noop = () => () => {};
+const readDay = () => utcDay(nowMs());
+
+function YourClubs({ f, set }: { f: ArchiveFilters; set: (p: Partial<ArchiveFilters>) => void }) {
+  const { favorites } = useFavorites();
+  // Favourites live in this browser only; render nothing on the server so the strip never flashes the wrong state.
+  const inBrowser = useSyncExternalStore(noop, () => true, () => false);
+  if (!inBrowser) return null;
+  if (!favorites.length) {
+    return (
+      <p className="text-sm text-slate-500">
+        <Star className="mr-1.5 inline h-3.5 w-3.5 -translate-y-px text-amber-400" />
+        Star your clubs in{" "}
+        <Link href="/?tab=club" className="font-medium text-slate-300 underline decoration-white/20 underline-offset-4 hover:text-white">
+          Club Hub
+        </Link>{" "}
+        and they&apos;ll appear here, one tap from their greatest matches.
+      </p>
+    );
+  }
+  const clubs = favorites.map((fav) => {
+    const key = archiveClubForEspnId(fav.id);
+    return { fav, key, count: key ? clubMatchCount(key) : 0 };
+  });
+  return (
+    <div>
+      <div className="mb-3 flex items-baseline justify-between gap-4">
+        <p className="font-display text-xl font-extrabold uppercase leading-none tracking-wide text-[#efe4cc]">
+          Your clubs. <span style={{ color: FILM_RED }}>Your history.</span>
+        </p>
+        {f.club !== "all" && (
+          <button onClick={() => set({ club: "all" })} className="shrink-0 text-xs font-medium text-slate-400 transition hover:text-white">
+            Show every match
+          </button>
+        )}
+      </div>
+      <div className="ch-scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0" role="group" aria-label="Your clubs">
+        {clubs.map(({ fav, key, count }) => {
+          const on = !!key && f.club === key;
+          return (
+            <button
+              key={fav.id}
+              disabled={!count}
+              aria-pressed={on}
+              onClick={() => key && set(on ? { club: "all" } : { club: key, q: "" })}
+              title={count ? `${count} historic ${count === 1 ? "match" : "matches"} with ${fav.name}` : `${fav.name} isn't in the archive yet`}
+              className={`group flex h-12 shrink-0 items-center gap-2.5 rounded-md border pl-2.5 pr-3.5 text-left transition duration-200 ${
+                on
+                  ? "border-[#efe4cc]/70 bg-[#efe4cc]/[0.08] shadow-[0_10px_24px_-16px_rgba(239,228,204,0.6)]"
+                  : count
+                    ? "border-line bg-white/[0.02] hover:-translate-y-px hover:border-[#efe4cc]/40"
+                    : "cursor-not-allowed border-line/60 opacity-45"
+              }`}
+            >
+              <TeamLogo src={fav.logo} name={fav.name} className="h-7 w-7" />
+              <span className="min-w-0">
+                <span className={`block text-sm font-semibold leading-tight ${on ? "text-white" : "text-slate-200"}`}>{fav.shortName || fav.name}</span>
+                <span className="flex items-center gap-1 text-[11px] leading-tight text-slate-500">
+                  <LeagueLogo league={fav.league} className="h-3 w-3" />
+                  {count ? `${count} ${count === 1 ? "match" : "matches"}` : "Not in the archive yet"}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -120,8 +205,8 @@ function ShowMore({ open, onClick, total }: { open: boolean; onClick: () => void
   );
 }
 
-function Greatest() {
-  const all = useMemo(() => byCat("greatest").filter((m) => m.slug !== COVER), []);
+function Greatest({ cover }: { cover: string }) {
+  const all = useMemo(() => byCat("greatest").filter((m) => m.slug !== cover), [cover]);
   const [open, setOpen] = useState(false);
   const lead = ["argentina-france-2022-world-cup-final", "barcelona-psg-2017-la-remontada"];
   const ordered = [...lead.map((s) => all.find((m) => m.slug === s)!).filter(Boolean), ...all.filter((m) => !lead.includes(m.slug))];
@@ -322,12 +407,17 @@ function Results({ list, onClear }: { list: HistoricMatch[]; onClear: () => void
 
 // ---------------------------------------------------------------------------
 
-export default function BigClash({ initial }: { initial?: Partial<ArchiveFilters> }) {
+export default function BigClash({ initial, coverDay }: { initial?: Partial<ArchiveFilters>; coverDay: number }) {
   const router = useRouter();
   const [f, setF] = useState<ArchiveFilters>({ ...NO_FILTERS, ...initial });
   const results = useMemo(() => filterArchive(f), [f]);
   const filtering = isFiltering(f);
-  const cover = ARCHIVE.find((m) => m.slug === COVER)!;
+
+  // The cover is chosen for the server's UTC day (so hydration matches), then follows the browser's
+  // clock: corrected at once if the page came from a cache on an earlier day, and turned over at 00:00 UTC.
+  const day = useClock(coverDay, readDay, 60_000);
+  const cover = coverFor(day);
+  const coverLabel = cover.anniversary ? `On this day in football history · ${cover.yearsAgo} years ago` : "From football history";
 
   const set = (p: Partial<ArchiveFilters>) => setF((prev) => ({ ...prev, ...p }));
 
@@ -355,7 +445,7 @@ export default function BigClash({ initial }: { initial?: Partial<ArchiveFilters
   return (
     <div className="space-y-12">
       <Masthead
-        index="04"
+        index="05"
         kicker="Big Clash · The archive"
         title={<>The matches that<br className="hidden sm:block" /> made football history</>}
         intro={`${ARCHIVE.length} matches from ${firstYear} to ${lastYear}: historic finals, impossible comebacks and the rivalries that define the sport. Every entry checked against the record, with official highlights where they exist.`}
@@ -383,18 +473,19 @@ export default function BigClash({ initial }: { initial?: Partial<ArchiveFilters
       />
 
       {!filtering && (
-        <Reveal wipe>
-          <CoverStory m={cover} />
+        <Reveal wipe key={cover.match.slug}>
+          <CoverStory m={cover.match} label={coverLabel} />
         </Reveal>
       )}
 
-      <div id="bc-archive" className="scroll-mt-20 space-y-12">
+      <div id="bc-archive" className="scroll-mt-20 space-y-8">
+        <YourClubs f={f} set={set} />
         <BrowseBar f={f} set={set} count={results.length} />
         {filtering ? (
           <Results list={results} onClear={() => setF(NO_FILTERS)} />
         ) : (
           <div className="space-y-20">
-            <Greatest />
+            <Greatest cover={cover.match.slug} />
             <EuropeanNights />
             <Rivalries onFilter={filterRivalry} />
             <Comebacks />

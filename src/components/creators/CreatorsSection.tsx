@@ -140,7 +140,7 @@ export default function CreatorsSection() {
   return (
     <section className="space-y-8">
       <Masthead
-        index="03"
+        index="06"
         kicker="Creators"
         title="The voices of the game"
         intro="Twenty football channels worth following — tactics, reactions, transfers, history and Indian football. Every profile opens the channel on YouTube."

@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { ARCHIVE } from "@/lib/big-clash/archive";
-import { SECTION_TABS, SITE_URL } from "@/lib/site";
+import { NEWS_PATH, SECTION_TABS, SITE_URL } from "@/lib/site";
 
 /**
  * The homepage, each section, and every Big Clash archive page. Live ESPN match pages are
@@ -20,5 +20,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: "monthly" as const,
     priority: 0.6,
   }));
-  return [{ url: SITE_URL, lastModified: now, changeFrequency: "daily", priority: 1 }, ...sections, ...archive];
+  const news = { url: `${SITE_URL}${NEWS_PATH}`, lastModified: now, changeFrequency: "hourly" as const, priority: 0.9 };
+  return [{ url: SITE_URL, lastModified: now, changeFrequency: "daily", priority: 1 }, news, ...sections, ...archive];
 }

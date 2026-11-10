@@ -130,7 +130,11 @@ export function MatchPoster({ m, featured = false }: { m: HistoricMatch; feature
 }
 
 /** The cover story: one match given the full width of the page. */
-export function CoverStory({ m }: { m: HistoricMatch }) {
+/**
+ * The daily cover story. `label` makes clear it is history, not a live or upcoming match:
+ * "On this day" only when the match really was played on this date.
+ */
+export function CoverStory({ m, label }: { m: HistoricMatch; label: string }) {
   const h = team(m.home), a = team(m.away);
   return (
     <Link href={matchHref(m)} className="bc-poster group grid overflow-hidden rounded-md border border-white/[0.08] bg-[#14120f] lg:grid-cols-[1.25fr_1fr]">
@@ -138,7 +142,7 @@ export function CoverStory({ m }: { m: HistoricMatch }) {
         <Artwork m={m} large />
       </div>
       <div className="flex flex-col p-6 sm:p-9">
-        <p className="kicker" style={{ color: FILM_RED }}>Cover story · {m.competition}</p>
+        <p className="kicker" style={{ color: FILM_RED }}>{label} · {m.competition}</p>
         <h3 className="mt-3 font-display text-5xl font-extrabold uppercase leading-[0.88] text-[#efe4cc] sm:text-6xl">{m.title}</h3>
         <div className="mt-6 flex items-end gap-4">
           <Score m={m} className="text-7xl sm:text-8xl" />
@@ -150,7 +154,7 @@ export function CoverStory({ m }: { m: HistoricMatch }) {
         <p className="mt-6 max-w-lg leading-relaxed text-slate-300">{m.summary}</p>
         <p className="mt-auto flex flex-wrap items-center justify-between gap-4 pt-8 text-sm text-slate-500">
           <span>{m.stadium}, {m.city} · {formatHistoricDate(m.date)}</span>
-          <span className="inline-flex items-center gap-1.5 font-semibold text-[#efe4cc]">Read the story <ArrowUpRight className="bc-arrow h-4 w-4" /></span>
+          <span className="inline-flex items-center gap-1.5 font-semibold text-[#efe4cc]">Relive the match <ArrowUpRight className="bc-arrow h-4 w-4" /></span>
         </p>
       </div>
     </Link>

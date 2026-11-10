@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { sectionHref } from "@/lib/site";
 import { ArrowLeft, CalendarDays, Clock, MapPin } from "lucide-react";
 import { clubAccent, formatDate, formatTime, relativeTime, timeZoneLabel, useApi, useFavorites } from "@/lib/club-hub/client";
 import type { MatchDetail } from "@/lib/club-hub/types";
@@ -111,7 +112,7 @@ export default function MatchPage({ id }: { id: string }) {
 
   return (
     <div className="min-h-screen bg-ink text-slate-100">
-      <Navbar activeTab={section} setActiveTab={(t) => router.push(t === "live" ? "/" : `/?tab=${t}`)} />
+      <Navbar activeTab={section} setActiveTab={(t) => router.push(sectionHref(t))} />
       <main className="mx-auto max-w-5xl space-y-10 px-4 py-10 sm:px-6 lg:px-8">
         <button onClick={back} className="group inline-flex items-center gap-2 text-sm font-medium text-slate-400 transition hover:text-white">
           <ArrowLeft className="h-4 w-4 transition group-hover:-translate-x-0.5" /> Back
