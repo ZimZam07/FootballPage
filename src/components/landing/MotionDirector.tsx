@@ -9,12 +9,13 @@ import { useEffect } from "react";
  *  - [data-parallax] gets --p, its progress through the viewport (-1 entering .. 0 centred .. 1
  *                    leaving), EASED toward the scroll position every frame — wheel notches and
  *                    trackpad bursts never show up as jumps.
- *  - [data-kinetic]  a line of type that drifts continuously at data-speed px/s, picks up smoothed
- *                    momentum from scrolling (data-boost), and wraps seamlessly by one copy's width.
+ *  - [data-zone]     sections whose CSS loops (marquees, floodlights, pitch) are paused while the
+ *                    section is fully off screen; they resume where they stopped. The marquees
+ *                    themselves are pure CSS and never read the scroll position.
  *  - [data-tilt]     gets --rx/--ry/--mx/--my from the pointer, batched to one write per frame.
  *
  * Only transforms and opacity change; nothing triggers layout. The loop runs only while a
- * parallax or kinetic element is on screen (or still easing) and stops otherwise. With reduced
+ * parallax element is on screen and still easing, and stops otherwise. With reduced
  * motion, content is simply shown and nothing moves.
  */
 export default function MotionDirector() {
@@ -42,60 +43,46 @@ export default function MotionDirector() {
     );
     reveal.forEach((el) => io.observe(el));
 
-    // --- Parallax & kinetic type: shared loop -----------------------------------------------
-    type Layer = { el: HTMLElement; p: number; target: number; py: number };
-    type Line = { el: HTMLElement; track: HTMLElement; speed: number; boost: number; x: number; width: number };
-    const layers = new Map<HTMLElement, Layer>();
-    const lines = new Map<HTMLElement, Line>();
-    const visibleLayers = new Set<Layer>();
-    const visibleLines = new Set<Line>();
+    // --- Off-screen sections: pause their CSS loops ------------------------------------------
+    const zones = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          const el = e.target as HTMLElement;
+          if (e.isIntersecting) delete el.dataset.offscreen;
+          else el.dataset.offscreen = "1";
+        }
+      },
+      { rootMargin: "120px 0px 120px 0px" },
+    );
+    root.querySelectorAll<HTMLElement>("[data-zone]").forEach((el) => zones.observe(el));
 
+    // --- Parallax: one loop, eased toward the scroll position -------------------------------
+    type Layer = { el: HTMLElement; p: number; target: number; py: number };
+    const layers = new Map<HTMLElement, Layer>();
+    const visibleLayers = new Set<Layer>();
     root.querySelectorAll<HTMLElement>("[data-parallax]").forEach((el) =>
       layers.set(el, { el, p: 0, target: 0, py: parseFloat(getComputedStyle(el).getPropertyValue("--py")) || 0 }),
     );
-    root.querySelectorAll<HTMLElement>("[data-kinetic]").forEach((el) => {
-      const track = el.firstElementChild as HTMLElement | null;
-      if (!track) return;
-      lines.set(el, { el, track, speed: Number(el.dataset.speed ?? -40), boost: Number(el.dataset.boost ?? 0.5), x: 0, width: 0 });
-    });
-
-    const measure = () => {
-      for (const l of lines.values()) {
-        // One copy of the phrase: the loop wraps by exactly this width, so the seam never shows.
-        l.width = (l.track.firstElementChild as HTMLElement | null)?.offsetWidth ?? 0;
-        if (l.speed > 0 && l.x === 0) l.x = -l.width;
-      }
-    };
-    measure();
 
     const near = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
           const layer = layers.get(e.target as HTMLElement);
-          const line = lines.get(e.target as HTMLElement);
-          if (layer) {
-            if (e.isIntersecting) visibleLayers.add(layer);
-            else visibleLayers.delete(layer);
-          }
-          if (line) {
-            if (e.isIntersecting) visibleLines.add(line);
-            else visibleLines.delete(line);
-          }
+          if (!layer) continue;
+          if (e.isIntersecting) visibleLayers.add(layer);
+          else visibleLayers.delete(layer);
         }
+        targets();
         wake();
       },
       { rootMargin: "20% 0px 20% 0px" },
     );
     layers.forEach((_, el) => near.observe(el));
-    lines.forEach((_, el) => near.observe(el));
 
     let frame = 0;
     let last = 0;
-    let scrollY = window.scrollY;
-    let velocity = 0; // px/s, smoothed
-    let lastScrollTime = performance.now();
 
-    const targets = () => {
+    function targets() {
       const vh = window.innerHeight;
       for (const l of visibleLayers) {
         const r = l.el.getBoundingClientRect();
@@ -104,7 +91,7 @@ export default function MotionDirector() {
         const p = (vh / 2 - centre) / (vh / 2 + r.height / 2);
         l.target = Math.max(-1, Math.min(1, p));
       }
-    };
+    }
 
     const tick = (now: number) => {
       frame = 0;
@@ -113,44 +100,25 @@ export default function MotionDirector() {
       // Frame-rate-independent easing: the same feel at 60 Hz and 120 Hz.
       const ease = 1 - Math.exp(-dt * 9);
       let busy = false;
-
       for (const l of visibleLayers) {
         l.p += (l.target - l.p) * ease;
         if (Math.abs(l.target - l.p) > 0.0005) busy = true;
+        else l.p = l.target;
         l.el.style.setProperty("--p", l.p.toFixed(4));
       }
-
-      // Scroll momentum decays smoothly once scrolling stops.
-      velocity *= Math.exp(-dt * 3.2);
-      for (const l of visibleLines) {
-        if (!l.width) continue;
-        const dir = Math.sign(l.speed) || -1;
-        l.x += (l.speed + dir * Math.min(900, Math.abs(velocity)) * l.boost) * dt;
-        if (l.x <= -l.width) l.x += l.width;
-        if (l.x > 0) l.x -= l.width;
-        l.track.style.transform = `translate3d(${l.x.toFixed(2)}px,0,0)`;
-        busy = true;
-      }
-
-      if (busy || Math.abs(velocity) > 1) frame = requestAnimationFrame(tick);
+      if (busy) frame = requestAnimationFrame(tick);
       else last = 0;
     };
     function wake() {
-      if (!frame && (visibleLayers.size || visibleLines.size) && !document.hidden) frame = requestAnimationFrame(tick);
+      if (!frame && visibleLayers.size && !document.hidden) frame = requestAnimationFrame(tick);
     }
 
     const onScroll = () => {
-      const now = performance.now();
-      const y = window.scrollY;
-      const dt = Math.max(8, now - lastScrollTime) / 1000;
-      velocity = velocity * 0.6 + ((y - scrollY) / dt) * 0.4;
-      scrollY = y;
-      lastScrollTime = now;
+      if (!visibleLayers.size) return;
       targets();
       wake();
     };
     const onResize = () => {
-      measure();
       targets();
       wake();
     };
@@ -164,8 +132,6 @@ export default function MotionDirector() {
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize, { passive: true });
     document.addEventListener("visibilitychange", onVisibility);
-    // Web fonts change the width of the kinetic type once they load.
-    document.fonts?.ready.then(onResize).catch(() => {});
     targets();
     wake();
 
@@ -204,6 +170,7 @@ export default function MotionDirector() {
     return () => {
       io.disconnect();
       near.disconnect();
+      zones.disconnect();
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onVisibility);

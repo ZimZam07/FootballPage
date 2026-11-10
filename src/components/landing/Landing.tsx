@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense, type CSSProperties, type ReactNode } from "react";
 import { ArrowDown, ArrowUpRight, MonitorPlay } from "lucide-react";
@@ -11,14 +12,13 @@ import { LEAGUE_IDENTITY } from "@/lib/club-hub/leagueIdentity";
 import { NEWS_PATH, sectionHref } from "@/lib/site";
 import LandingNav from "./LandingNav";
 import { LiveHeadlines, LiveTable } from "./LiveData";
-import TrophySlot from "./TrophySlot";
 import MotionDirector from "./MotionDirector";
 
 /*
- * Football Hub's front door. Concept: "the floodlights come on" — a night stadium, a real 3D ball
- * in the light, and the platform's own content (crests, competitions, classic scorelines, creators)
+ * Football Hub's front door. Concept: "the floodlights come on" — a night stadium and the
+ * platform's own content (crests, competitions, classic scorelines, creators)
  * drifting past in depth. Then the six experiences, each with its own visual language and real data
- * where it can be loaded reliably, and a closing call to every door.
+ * where it can be loaded reliably, and a closing guide to every door.
  */
 
 const VOLT = "#d4f53c";
@@ -104,7 +104,7 @@ function ContentWall() {
       <div className="absolute right-[18%] top-1/2 hidden aspect-square w-[46%] -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,251,230,0.09),transparent_65%)] lg:block" />
       <div className="flex h-full flex-col justify-center gap-6 [transform:rotateY(-20deg)_rotateX(6deg)] [transform-style:preserve-3d] [mask-image:linear-gradient(to_right,transparent,black_24%,black_88%,transparent)]">
         {/* Far: club crests, small and slow */}
-        <Drift dur={140} className="opacity-30 blur-[1px]">
+        <Drift dur={140} className="opacity-25">
           {CLUBS.map((c) => crest(c, "h-14 w-14"))}
         </Drift>
         {/* Middle: competitions and classic scorelines */}
@@ -151,7 +151,7 @@ function Hero() {
     [String(CREATORS.length), "creators"],
   ];
   return (
-    <section className="relative isolate overflow-hidden" aria-labelledby="lp-title">
+    <section data-zone className="relative isolate overflow-hidden" aria-labelledby="lp-title">
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(120%_80%_at_70%_10%,#1b2116_0%,#0d0f12_45%,#0b0c0f_75%)]" aria-hidden />
       <Floodlights />
       <ContentWall />
@@ -234,29 +234,66 @@ function Hero() {
 }
 
 // ---------------------------------------------------------------------------
-// The kinetic band: two lines of type that drift in opposite directions, with scroll momentum.
+// The marquee band: club crests flowing left to right above and below, the type flowing right to
+// left between them. Every row is a pure CSS loop (the same mechanism as the guide's ticker): a
+// constant speed, never tied to scrolling, doubled content so the seam never shows.
 
-/** One phrase, repeated enough to overfill the widest screens; the loop wraps by one copy. */
-function KineticLine({ text, speed, className }: { text: string; speed: number; className: string }) {
+/** Club crests from the same ESPN source Club Hub uses, in the variant made for dark backgrounds. */
+const crestUrl = (id: number) => `https://a.espncdn.com/i/teamlogos/soccer/500-dark/${id}.png`;
+const BAND_TOP: [string, number][] = [
+  ["Real Madrid", 86], ["Manchester City", 382], ["Bayern Munich", 132], ["Inter", 110], ["Paris Saint-Germain", 160],
+  ["Liverpool", 364], ["Barcelona", 83], ["Juventus", 111], ["Borussia Dortmund", 124], ["Marseille", 176],
+  ["Arsenal", 359], ["Atlético Madrid", 1068], ["Napoli", 114],
+];
+const BAND_BOTTOM: [string, number][] = [
+  ["Manchester United", 360], ["AC Milan", 103], ["Bayer Leverkusen", 131], ["Lyon", 167], ["Chelsea", 363],
+  ["Valencia", 94], ["Roma", 104], ["Monaco", 174], ["Tottenham Hotspur", 367], ["Real Betis", 244],
+  ["Lille", 166], ["Newcastle United", 361],
+];
+
+/** A row of crests moving left to right. Each half holds the list twice so it overfills wide screens. */
+function CrestRow({ clubs, dur }: { clubs: [string, number][]; dur: number }) {
   return (
-    <div data-kinetic data-speed={speed} data-boost="0.35" className="overflow-hidden">
-      <div className="flex w-max will-change-transform">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <span key={i} className={`shrink-0 whitespace-nowrap pr-[0.35em] ${className}`}>
-            {text}
-          </span>
-        ))}
-      </div>
+    <div className="border-y border-white/[0.06] py-4 sm:py-5">
+      <Drift dur={dur} reverse>
+        {[0, 1].flatMap((k) =>
+          clubs.map(([name, id]) => (
+            <span key={`${k}-${id}`} className="mx-4 flex h-9 w-9 shrink-0 items-center justify-center sm:mx-6 sm:h-12 sm:w-12 lg:mx-8 lg:h-14 lg:w-14">
+              {img(crestUrl(id), name, "h-full w-full object-contain", 56)}
+            </span>
+          )),
+        )}
+      </Drift>
     </div>
+  );
+}
+
+/** A line of oversized type moving right to left, four copies per half so it never shows a gap. */
+function TypeRow({ text, dur, className }: { text: string; dur: number; className: string }) {
+  return (
+    <Drift dur={dur}>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <span key={i} className={`shrink-0 whitespace-nowrap py-[0.04em] pr-[0.4em] ${className}`}>
+          {text}
+        </span>
+      ))}
+    </Drift>
   );
 }
 
 function KineticBand() {
   return (
-    <section className="relative overflow-hidden py-20 sm:py-28" aria-label="One game. Six experiences.">
-      <div className="space-y-1 font-display text-[clamp(3.6rem,11vw,10.5rem)] font-extrabold uppercase leading-[0.85]" aria-hidden>
-        <KineticLine text="One game." speed={-46} className="text-white" />
-        <KineticLine text="Six experiences." speed={34} className="lp-outline [-webkit-text-stroke-color:rgba(212,245,60,0.55)]" />
+    <section data-zone className="relative overflow-hidden py-16 sm:py-24" aria-label="One game. Six experiences.">
+      <div className="relative" aria-hidden>
+        <CrestRow clubs={BAND_TOP} dur={70} />
+        <div className="my-6 space-y-1 font-display text-[clamp(3.6rem,11vw,10.5rem)] font-extrabold uppercase leading-[0.85] sm:my-10">
+          <TypeRow text="One game." dur={45} className="text-white" />
+          <TypeRow text="Six experiences." dur={85} className="lp-outline [-webkit-text-stroke-color:rgba(212,245,60,0.55)]" />
+        </div>
+        <CrestRow clubs={BAND_BOTTOM} dur={85} />
+        {/* Soft edges, so rows enter and leave rather than being cut off */}
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-ink to-transparent sm:w-24" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-ink to-transparent sm:w-24" />
       </div>
     </section>
   );
@@ -300,7 +337,7 @@ const GUIDE = [
 
 function Guide() {
   return (
-    <section className="relative mt-32 overflow-hidden border-t border-line pt-20" aria-labelledby="lp-guide">
+    <section data-zone className="relative mt-32 overflow-hidden border-t border-line pt-20" aria-labelledby="lp-guide">
       <div aria-hidden className="mb-16">
         <Drift dur={60}>
           {GUIDE.map((g) => (
@@ -487,7 +524,7 @@ function ClubHubVisual() {
       {/* The five leagues */}
       <div className="absolute left-5 top-5 flex gap-2 sm:left-8">
         {LEAGUES.map((l) => (
-          <span key={l.id} className="flex h-10 w-10 items-center justify-center rounded-md border border-white/10 bg-[#0b0c0f]/80 p-1.5 backdrop-blur" title={l.name}>
+          <span key={l.id} className="flex h-10 w-10 items-center justify-center rounded-md border border-white/10 bg-[#0b0c0f]/95 p-1.5" title={l.name}>
             {img(l.logo, l.name, "h-full w-full object-contain", 28)}
           </span>
         ))}
@@ -503,55 +540,17 @@ function ClubHubVisual() {
 }
 
 function ChampionsVisual() {
+  // The supplied photograph (trophy and starball artwork together), shown as it is. object-cover keeps
+  // the trophy centred and whole; only the panel's blue edges are trimmed on narrow boxes.
   return (
-    <div className="absolute inset-0 overflow-hidden bg-[radial-gradient(90%_100%_at_72%_35%,#18265a,#0a0f24_55%,#06070c)]">
-      {/* Stars as background texture only */}
-      <div className="absolute inset-0" aria-hidden>
-        {Array.from({ length: 36 }).map((_, i) => (
-          <span
-            key={i}
-            className="lp-twinkle absolute h-[2px] w-[2px] rounded-full bg-white"
-            style={{ left: `${(i * 29) % 100}%`, top: `${(i * 47) % 100}%`, ["--t" as string]: `${2 + (i % 5)}s`, ["--d" as string]: `${(i % 7) * 0.4}s`, opacity: 0.6 }}
-          />
-        ))}
-      </div>
-      {/* The stage: two soft floodlight beams converging on the trophy */}
-      <div className="pointer-events-none absolute inset-y-0 right-0 w-[62%] sm:w-[52%]" aria-hidden>
-        {[
-          { side: "left-[6%]", rot: "rotate-[16deg]" },
-          { side: "right-[6%]", rot: "-rotate-[16deg]" },
-        ].map((b) => (
-          <span
-            key={b.side}
-            className={`absolute -top-[10%] ${b.side} h-[95%] w-[46%] origin-top ${b.rot}`}
-            style={{ background: "linear-gradient(180deg, rgba(225,232,255,0.16), rgba(225,232,255,0.03) 70%, transparent)", clipPath: "polygon(42% 0, 58% 0, 100% 100%, 0 100%)" }}
-          />
-        ))}
-        {/* Halo behind the cup */}
-        <span className="absolute left-1/2 top-[42%] aspect-square w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(201,211,230,0.30),rgba(120,140,220,0.10)_38%,transparent_66%)]" />
-        {/* Light motes in the beams */}
-        {Array.from({ length: 10 }).map((_, i) => (
-          <span
-            key={i}
-            className="lp-mote absolute h-1 w-1 rounded-full bg-[#e6ecff]/60"
-            style={{ left: `${18 + ((i * 41) % 64)}%`, top: `${12 + ((i * 29) % 62)}%`, ["--t" as string]: `${7 + (i % 4) * 2}s`, opacity: 0.25 + (i % 3) * 0.15 }}
-          />
-        ))}
-        {/* The platform: a lit disc with a polished rim */}
-        <span className="absolute bottom-[7%] left-1/2 h-[9%] w-[64%] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(closest-side,rgba(200,212,240,0.32),rgba(80,98,160,0.18)_60%,rgba(10,14,32,0.9))] shadow-[0_0_0_1px_rgba(201,211,230,0.28),0_18px_30px_-12px_rgba(0,0,0,0.9)]" />
-        <span className="absolute bottom-[10.5%] left-1/2 h-[3%] w-[34%] -translate-x-1/2 rounded-[50%] bg-black/55 blur-[6px]" />
-        {/* The trophy, standing on the platform */}
-        <div className="absolute bottom-[3%] left-1/2 h-[90%] w-[78%] -translate-x-1/2">
-          <TrophySlot className="h-full w-full" />
-        </div>
-      </div>
-      <div className="absolute left-5 top-6 space-y-2 sm:left-8" aria-hidden>
-        {["Standings", "Fixtures & results", "Knockout bracket", "Top scorers", "Top assists", "Clean sheets"].map((t, i) => (
-          <p key={t} className="lp-plate font-display text-lg font-bold uppercase tracking-wide text-[#c9d3e6]" style={{ "--d": `${0.3 + i * 0.09}s`, opacity: 1 - i * 0.1 } as CSSProperties}>
-            {t}
-          </p>
-        ))}
-      </div>
+    <div className="absolute inset-0 overflow-hidden bg-[#071a6b]">
+      <Image
+        src="/landing/cl_trophy.avif"
+        alt="The UEFA Champions League trophy on a blue starball background"
+        fill
+        sizes="(min-width: 1024px) 60vw, 100vw"
+        className="object-cover object-center transition-transform duration-[1200ms] ease-out group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+      />
     </div>
   );
 }

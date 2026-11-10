@@ -344,7 +344,6 @@ body {
 /* Six phrases plus the first repeated (7 rows): each step moves one row, i.e. 1/7 of the list. */
 @keyframes lp-words { 0%, 13% { transform: translate3d(0, 0, 0); } 16.67%, 29.67% { transform: translate3d(0, -14.2857%, 0); } 33.33%, 46.33% { transform: translate3d(0, -28.5714%, 0); } 50.00%, 63.00% { transform: translate3d(0, -42.8571%, 0); } 66.67%, 79.67% { transform: translate3d(0, -57.1429%, 0); } 83.33%, 96.33% { transform: translate3d(0, -71.4286%, 0); } 100% { transform: translate3d(0, -85.7143%, 0); } }
 @keyframes lp-cycle { 0% { opacity: 0; transform: translate3d(6%, 0, 0); } 4%, 21% { opacity: 1; transform: none; } 25%, 100% { opacity: 0; transform: translate3d(-6%, 0, 0); } }
-@keyframes lp-twinkle { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
 @keyframes lp-spin { to { transform: rotate(360deg); } }
 @keyframes lp-cue { 0% { transform: scaleY(0); transform-origin: top; } 45% { transform: scaleY(1); transform-origin: top; } 55% { transform: scaleY(1); transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
 @keyframes lp-drift { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, -40px, 0); } }
@@ -375,10 +374,12 @@ body {
 .lp-cycle > *:nth-child(2) { animation-delay: 4s; }
 .lp-cycle > *:nth-child(3) { animation-delay: 8s; }
 .lp-cycle > *:nth-child(4) { animation-delay: 12s; }
-.lp-twinkle { animation: lp-twinkle var(--t, 3s) ease-in-out infinite; animation-delay: var(--d, 0s); }
 .lp-spin { animation: lp-spin var(--dur, 90s) linear infinite; }
 .lp-cue { animation: lp-cue 2.4s cubic-bezier(0.7, 0, 0.3, 1) infinite; }
 .lp-mote { animation: lp-drift var(--t, 9s) ease-in-out infinite alternate; }
+
+/* Sections scrolled fully out of view hold their loops still (set by the MotionDirector). */
+[data-offscreen] *, [data-offscreen] *::before { animation-play-state: paused !important; }
 
 /* Scroll-driven: --p runs -1 (entering) .. 0 (centred) .. 1 (leaving), set by the MotionDirector. */
 [data-parallax] { transform: translate3d(calc(var(--p, 0) * var(--px, 0px)), calc(var(--p, 0) * var(--py, 0px)), 0); will-change: transform; }
@@ -400,7 +401,7 @@ body {
 .lp-outline { color: transparent; -webkit-text-stroke: 1px rgb(255 255 255 / 0.22); }
 
 @media (prefers-reduced-motion: reduce) {
-  .lp-track, .lp-track-y, .lp-letter, .lp-wipe, .lp-fade, .lp-beam, .lp-pitch::before, .lp-words, .lp-twinkle, .lp-spin, .lp-cue, .lp-mote, [data-in="1"] .lp-plate { animation: none !important; }
+  .lp-track, .lp-track-y, .lp-letter, .lp-wipe, .lp-fade, .lp-beam, .lp-pitch::before, .lp-words, .lp-spin, .lp-cue, .lp-mote, [data-in="1"] .lp-plate { animation: none !important; }
   .lp-cycle > * { animation: none !important; opacity: 0; }
   .lp-cycle > *:first-child { opacity: 1; }
   [data-parallax] { transform: none !important; }
