@@ -2,6 +2,9 @@ import { getStandings } from "@/lib/club-hub/espn";
 import { getLeague } from "@/lib/club-hub/leagues";
 import { getFootballNews } from "@/lib/news/feed";
 import { arrange, CATEGORY_COLOR, CATEGORY_LABEL } from "@/lib/news/edition";
+import { LEAGUE_IDENTITY } from "@/lib/club-hub/leagueIdentity";
+import type { LeagueId } from "@/lib/club-hub/types";
+import RotatingTable, { type TableSlide } from "./RotatingTable";
 
 /**
  * Real data for the landing page's feature panels. Each piece streams in after the page shell
@@ -9,30 +12,26 @@ import { arrange, CATEGORY_COLOR, CATEGORY_LABEL } from "@/lib/news/edition";
  * shows placeholder figures or invented headlines.
  */
 
-/** The Premier League's top five right now, from the same standings service as Club Hub. */
+/**
+ * Each league's real top five right now, from the same standings service as Club Hub, in Club
+ * Hub's league order. A league whose table can't be loaded is simply left out of the rotation.
+ */
 export async function LiveTable() {
-  const pl = getLeague("pl");
-  const table = pl ? await getStandings(pl).catch(() => null) : null;
-  if (!table?.rows.length) return null;
-  return (
-    <div className="w-[15.5rem] rounded-md border border-white/10 bg-[#0b0c0f]/80 p-3 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-md">
-      <p className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-        <span>Premier League · now</span>
-        <span className="text-slate-500">Pts</span>
-      </p>
-      <ol className="space-y-1.5">
-        {table.rows.slice(0, 5).map((r) => (
-          <li key={r.team.id} className="flex items-center gap-2.5 text-sm">
-            <span className="w-4 text-right font-display font-bold text-slate-500">{r.position}</span>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={r.team.logo ?? ""} alt="" width={20} height={20} className="h-5 w-5 object-contain" loading="lazy" />
-            <span className="min-w-0 flex-1 truncate font-medium text-slate-200">{r.team.shortName}</span>
-            <span className="font-display text-base font-bold text-white">{r.points}</span>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
+  const order: LeagueId[] = ["pl", "laliga", "seriea", "bundesliga", "ligue1"];
+  const results = await Promise.allSettled(order.map((id) => getStandings(getLeague(id)!)));
+  const slides: TableSlide[] = results.flatMap((r, i) => {
+    if (r.status !== "fulfilled" || !r.value.rows.length) return [];
+    const id = LEAGUE_IDENTITY[order[i]];
+    return [
+      {
+        league: id.id,
+        name: id.name,
+        logo: id.logo,
+        rows: r.value.rows.slice(0, 5).map((row) => ({ id: row.team.id, position: row.position, name: row.team.shortName, logo: row.team.logo, points: row.points })),
+      },
+    ];
+  });
+  return slides.length ? <RotatingTable slides={slides} /> : null;
 }
 
 /** Today's headlines from TimesOfFootball's own selection (the strongest stories first). */

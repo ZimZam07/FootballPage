@@ -9,9 +9,9 @@ import { ARCHIVE, team, year } from "@/lib/big-clash/archive";
 import { coverFor, todayUtc } from "@/lib/big-clash/cover";
 import { LEAGUE_IDENTITY } from "@/lib/club-hub/leagueIdentity";
 import { NEWS_PATH, sectionHref } from "@/lib/site";
-import HeroBallSlot from "./HeroBallSlot";
 import LandingNav from "./LandingNav";
 import { LiveHeadlines, LiveTable } from "./LiveData";
+import TrophySlot from "./TrophySlot";
 import MotionDirector from "./MotionDirector";
 
 /*
@@ -98,10 +98,11 @@ function ContentWall() {
       {img(c.logo, c.name, "h-[62%] w-[62%] object-contain", 96, true)}
     </div>
   );
-  // On phones the wall sits in the lower half, behind the ball, so it never runs under the text.
+  // The wall owns the right of the stage. On phones it sits in the lower half, clear of the text.
   return (
-    <div className="pointer-events-none absolute -right-[12%] bottom-[2%] top-[52%] w-[118%] opacity-70 [perspective:1100px] lg:inset-y-[6%] lg:w-[88%] lg:opacity-100" aria-hidden>
-      <div className="flex h-full flex-col justify-center gap-5 [transform:rotateY(-24deg)_rotateX(7deg)] [transform-style:preserve-3d] [mask-image:linear-gradient(to_right,transparent,black_28%,black_86%,transparent)]">
+    <div className="pointer-events-none absolute -right-[10%] bottom-[2%] top-[52%] w-[118%] opacity-75 [perspective:1100px] lg:inset-y-[7%] lg:w-[94%] lg:opacity-100" aria-hidden>
+      <div className="absolute right-[18%] top-1/2 hidden aspect-square w-[46%] -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,251,230,0.09),transparent_65%)] lg:block" />
+      <div className="flex h-full flex-col justify-center gap-6 [transform:rotateY(-20deg)_rotateX(6deg)] [transform-style:preserve-3d] [mask-image:linear-gradient(to_right,transparent,black_24%,black_88%,transparent)]">
         {/* Far: club crests, small and slow */}
         <Drift dur={140} className="opacity-30 blur-[1px]">
           {CLUBS.map((c) => crest(c, "h-14 w-14"))}
@@ -130,8 +131,8 @@ function ContentWall() {
         <Drift dur={70} className="opacity-90">
           {CREATORS.map((c, i) => (
             <div key={c.id} className="flex shrink-0">
-              <div className="mx-2 h-24 w-24 shrink-0 overflow-hidden rounded-md border border-white/10 bg-panel">{img(c.avatar, c.name, "h-full w-full object-cover", 96, true)}</div>
-              {CLUBS[i] && crest(CLUBS[i], "h-24 w-24")}
+              <div className="mx-2 h-24 w-24 shrink-0 overflow-hidden rounded-md border border-white/10 bg-panel lg:h-28 lg:w-28">{img(c.avatar, c.name, "h-full w-full object-cover", 112, true)}</div>
+              {CLUBS[i] && crest(CLUBS[i], "h-24 w-24 lg:h-28 lg:w-28")}
             </div>
           ))}
         </Drift>
@@ -156,7 +157,7 @@ function Hero() {
       <ContentWall />
       <Pitch />
       {/* Keep the type side quiet so the headline reads first. */}
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,#0b0c0f_0%,rgba(11,12,15,0.86)_34%,rgba(11,12,15,0.15)_62%,transparent)] max-lg:bg-[linear-gradient(180deg,rgba(11,12,15,0.9)_0%,rgba(11,12,15,0.55)_55%,rgba(11,12,15,0.2))]" aria-hidden />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,#0b0c0f_0%,rgba(11,12,15,0.84)_30%,rgba(11,12,15,0.1)_52%,transparent)] max-lg:bg-[linear-gradient(180deg,rgba(11,12,15,0.9)_0%,rgba(11,12,15,0.55)_55%,rgba(11,12,15,0.2))]" aria-hidden />
       {/* Motes in the floodlight */}
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         {Array.from({ length: 14 }).map((_, i) => (
@@ -168,8 +169,8 @@ function Hero() {
         ))}
       </div>
 
-      <div className="relative mx-auto grid min-h-[calc(100svh-60px)] max-w-7xl items-center gap-6 px-4 pb-16 pt-12 sm:px-6 lg:min-h-[min(calc(100svh-60px),920px)] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:px-8 lg:pb-20">
-        <div data-parallax style={{ "--py": "-60px" } as CSSProperties}>
+      <div className="relative mx-auto grid min-h-[calc(100svh-60px)] max-w-7xl items-center gap-6 px-4 pb-16 pt-12 sm:px-6 lg:min-h-[min(calc(100svh-60px),920px)] lg:px-8 lg:pb-20">
+        <div className="max-w-3xl" data-parallax style={{ "--py": "-60px" } as CSSProperties}>
           <p className="kicker lp-fade flex items-center gap-3" style={{ "--d": "0.05s" } as CSSProperties}>
             <span className="h-px w-8 bg-volt" aria-hidden />
             Six experiences · one home for the game
@@ -206,7 +207,7 @@ function Hero() {
             <a href="#experiences" className="inline-flex h-12 items-center gap-2 rounded-md bg-volt px-6 text-sm font-bold uppercase tracking-wide text-slate-950 shadow-[0_18px_40px_-18px_rgba(212,245,60,0.7)] transition hover:bg-white">
               Explore Football Hub <ArrowDown className="h-4 w-4" />
             </a>
-            <Link href={sectionHref("live")} className="inline-flex h-12 items-center gap-2 rounded-md border border-white/20 bg-white/[0.03] px-6 text-sm font-bold uppercase tracking-wide text-white backdrop-blur transition hover:border-white/50">
+            <Link href={sectionHref("live")} className="inline-flex h-12 items-center gap-2 rounded-md border border-white/20 bg-[#0b0c0f]/70 px-6 text-sm font-bold uppercase tracking-wide text-white transition hover:border-white/50">
               <MonitorPlay className="h-4 w-4" /> Watch Live Matches
             </Link>
           </div>
@@ -220,16 +221,6 @@ function Hero() {
           </dl>
         </div>
 
-        {/* The ball, hanging in the light above its shadow on the grass */}
-        <div className="relative mx-auto flex w-full max-w-[460px] items-center justify-center lg:max-w-none" data-parallax style={{ "--py": "90px" } as CSSProperties}>
-          <div className="absolute aspect-square w-[78%] rounded-full bg-[radial-gradient(circle,rgba(212,245,60,0.16),transparent_62%)] blur-2xl" aria-hidden />
-          <div className="lp-fade relative w-[min(72vw,440px)]" style={{ "--d": "0.4s" } as CSSProperties}>
-            <div className="lp-bob">
-              <HeroBallSlot />
-            </div>
-            <div className="lp-shadow mx-auto mt-4 h-6 w-[60%] rounded-[50%] bg-black/70 blur-md" aria-hidden />
-          </div>
-        </div>
       </div>
 
       <a href="#experiences" className="absolute bottom-5 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500 transition hover:text-white sm:flex">
@@ -243,49 +234,115 @@ function Hero() {
 }
 
 // ---------------------------------------------------------------------------
-// The guide: one statement, and a plain-language index of the six experiences
+// The kinetic band: two lines of type that drift in opposite directions, with scroll momentum.
+
+/** One phrase, repeated enough to overfill the widest screens; the loop wraps by one copy. */
+function KineticLine({ text, speed, className }: { text: string; speed: number; className: string }) {
+  return (
+    <div data-kinetic data-speed={speed} data-boost="0.35" className="overflow-hidden">
+      <div className="flex w-max will-change-transform">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <span key={i} className={`shrink-0 whitespace-nowrap pr-[0.35em] ${className}`}>
+            {text}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function KineticBand() {
+  return (
+    <section className="relative overflow-hidden py-20 sm:py-28" aria-label="One game. Six experiences.">
+      <div className="space-y-1 font-display text-[clamp(3.6rem,11vw,10.5rem)] font-extrabold uppercase leading-[0.85]" aria-hidden>
+        <KineticLine text="One game." speed={-46} className="text-white" />
+        <KineticLine text="Six experiences." speed={34} className="lp-outline [-webkit-text-stroke-color:rgba(212,245,60,0.55)]" />
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The guide (the last section): what each part of Football Hub actually does, in plain words.
 
 const GUIDE = [
-  { n: "01", id: "live", name: "Watch Live Matches", line: "Two external football streaming directories, one tap away." },
-  { n: "02", id: "club", name: "Club Hub", line: "Your clubs across five leagues: fixtures, results, tables, squads and news." },
-  { n: "03", id: "ucl", name: "UEFA Champions League", line: "Standings, fixtures, the knockout bracket and the top-stats race." },
-  { n: "04", id: "news", name: "TimesOfFootball", line: "The football stories everyone is talking about, refreshed through the day." },
-  { n: "05", id: "big", name: "Big Clash", line: "Football's greatest matches, with a new cover story every day." },
-  { n: "06", id: "creators", name: "Creators", line: "The best football channels from India and around the world." },
+  {
+    n: "01", id: "live", name: "Watch Live Matches", accent: "#ff6b4a", cta: "Find where to watch",
+    headline: "Find where to watch the game.",
+    body: "Quick links to two external football streaming websites showing matches. Football Hub doesn't host or stream anything; each link opens the other site in a new tab.",
+  },
+  {
+    n: "02", id: "club", name: "Club Hub", accent: VOLT, cta: "Open Club Hub",
+    headline: "Your club. Your football world.",
+    body: "Follow everything about your favourite clubs: fixtures, results, league position, form, squad information and the latest news, across Europe's top five leagues.",
+  },
+  {
+    n: "03", id: "ucl", name: "UEFA Champions League", accent: "#c9d3e6", cta: "Open the Champions League",
+    headline: "Everything happening in Europe's biggest club competition.",
+    body: "Follow the Champions League race with the standings, upcoming fixtures, results, the knockout stages and the top scorers, assists and clean sheets.",
+  },
+  {
+    n: "04", id: "news", name: "TimesOfFootball", accent: "#5ad1ff", cta: "Read the latest",
+    headline: "Never miss the stories everyone is talking about.",
+    body: "Major football news as it happens: transfer developments, big match stories, managers, records and farewells, about the clubs and players fans care about.",
+  },
+  {
+    n: "05", id: "big", name: "Big Clash", accent: "#ff6a52", cta: "Relive the classics",
+    headline: "Relive football's greatest moments.",
+    body: "Explore legendary matches, unforgettable scorelines, historic rivalries and dramatic comebacks, with a new classic on the cover every day.",
+  },
+  {
+    n: "06", id: "creators", name: "Creators", accent: "#ff4d6d", cta: "Discover creators",
+    headline: "Discover the voices behind the game.",
+    body: "Find entertaining and insightful football YouTube creators from India and around the world, each one a tap away on YouTube.",
+  },
 ];
 
-function Statement() {
+function Guide() {
   return (
-    <section className="relative overflow-hidden py-24 sm:py-32" aria-labelledby="lp-statement">
-      <div className="space-y-1 font-display font-extrabold uppercase leading-[0.85]" aria-hidden>
-        <p data-parallax className="whitespace-nowrap text-[clamp(4rem,12vw,11rem)] text-white" style={{ "--px": "-14vw" } as CSSProperties}>
-          One game. One game. One game.
-        </p>
-        <p data-parallax className="lp-outline whitespace-nowrap text-[clamp(4rem,12vw,11rem)] [-webkit-text-stroke-color:rgba(212,245,60,0.5)]" style={{ "--px": "14vw", marginLeft: "-30vw" } as CSSProperties}>
-          Six experiences. Six experiences.
-        </p>
+    <section className="relative mt-32 overflow-hidden border-t border-line pt-20" aria-labelledby="lp-guide">
+      <div aria-hidden className="mb-16">
+        <Drift dur={60}>
+          {GUIDE.map((g) => (
+            <span key={g.id} className="lp-outline mx-6 whitespace-nowrap font-display text-[clamp(3.5rem,9vw,8rem)] font-extrabold uppercase leading-none">
+              {g.name} <span className="text-volt [-webkit-text-stroke:0]">·</span>
+            </span>
+          ))}
+        </Drift>
       </div>
-      <div className="mx-auto mt-16 grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:px-8">
-        <div data-reveal>
-          <h2 id="lp-statement" className="font-display text-4xl font-extrabold uppercase leading-[0.95] text-white sm:text-5xl">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div data-reveal className="mb-12 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-end">
+          <h2 id="lp-guide" className="font-display text-5xl font-extrabold uppercase leading-[0.9] text-white sm:text-6xl">
             One game.
             <br />
             <span className="text-volt">Six experiences.</span>
           </h2>
-          <p className="mt-5 max-w-md leading-relaxed text-slate-400">
-            Football Hub brings together everything a fan reaches for on matchday and in between: where to watch, how your club is doing, the Champions League race, the
-            day&apos;s big stories, the matches that made history and the people who talk about the game best.
-          </p>
+          <p className="max-w-md text-slate-400 lg:justify-self-end">New here? This is what each part of Football Hub does. Pick one and you&apos;re straight in.</p>
         </div>
-        <ol className="border-t border-line">
+        <ol className="grid gap-px overflow-hidden rounded-lg border border-line bg-line md:grid-cols-2 lg:grid-cols-3">
           {GUIDE.map((g, i) => (
-            <li key={g.id} data-reveal style={{ "--d": `${i * 70}ms` } as CSSProperties}>
-              <a href={`#exp-${g.id}`} className="group grid grid-cols-[3rem_minmax(0,1fr)_auto] items-baseline gap-4 border-b border-line py-4 transition hover:bg-white/[0.02] sm:grid-cols-[4rem_minmax(0,14rem)_minmax(0,1fr)_auto]">
-                <span className="font-display text-2xl font-bold text-slate-600 transition group-hover:text-volt">{g.n}</span>
-                <span className="font-display text-xl font-bold uppercase text-white">{g.name}</span>
-                <span className="col-span-2 col-start-2 text-sm text-slate-400 sm:col-span-1 sm:col-start-auto">{g.line}</span>
-                <ArrowDown className="hidden h-4 w-4 text-slate-500 transition group-hover:translate-y-0.5 group-hover:text-white sm:block" />
-              </a>
+            <li key={g.id} data-reveal style={{ "--d": `${(i % 3) * 80}ms` } as CSSProperties} className="bg-ink">
+              <Link
+                href={sectionHref(g.id)}
+                className="group relative flex h-full flex-col gap-4 p-7 outline-none transition-colors duration-300 hover:bg-[#101216] focus-visible:bg-[#101216] focus-visible:ring-2 focus-visible:ring-inset sm:p-8"
+                style={{ ["--tw-ring-color" as string]: g.accent }}
+              >
+                {/* An accent rule that grows on hover and focus */}
+                <span className="absolute inset-x-0 top-0 h-[3px] origin-left scale-x-[0.18] transition-transform duration-500 ease-out group-hover:scale-x-100 group-focus-visible:scale-x-100" style={{ background: g.accent }} aria-hidden />
+                <span className="flex items-baseline justify-between gap-4">
+                  <span className="font-display text-6xl font-extrabold leading-none text-transparent [-webkit-text-stroke:1px_currentColor]" style={{ color: g.accent }} aria-hidden>
+                    {g.n}
+                  </span>
+                  <span className="text-right text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: g.accent }}>
+                    {g.name}
+                  </span>
+                </span>
+                <span className="font-display text-[1.7rem] font-extrabold uppercase leading-[0.98] text-white">{g.headline}</span>
+                <span className="text-[15px] leading-relaxed text-slate-400">{g.body}</span>
+                <span className="mt-auto inline-flex items-center gap-2 pt-2 text-sm font-bold uppercase tracking-wide" style={{ color: g.accent }}>
+                  {g.cta} <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                </span>
+              </Link>
             </li>
           ))}
         </ol>
@@ -352,7 +409,7 @@ function Experience({
             </li>
           ))}
         </ul>
-        <Link href={href} className="lp-tile-cta mt-6 inline-flex h-11 items-center gap-2 rounded-md px-5 text-sm font-bold uppercase tracking-wide text-slate-950 transition hover:brightness-110" style={{ background: accent }}>
+        <Link href={href} className="lp-tile-cta mt-6 inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-md px-4 text-[13px] font-bold uppercase text-slate-950 transition hover:brightness-110 sm:px-5 sm:text-sm sm:tracking-wide" style={{ background: accent }}>
           {cta} <ArrowUpRight className="h-4 w-4" />
         </Link>
       </div>
@@ -367,18 +424,41 @@ function WatchLiveVisual() {
         <div className="lp-pitch absolute inset-x-[-40%] bottom-0 h-[230%] origin-bottom opacity-80 [transform:rotateX(70deg)] [mask-image:linear-gradient(to_top,black_10%,transparent_75%)]" />
       </div>
       <div className="absolute inset-x-0 top-0 h-2/3 bg-[radial-gradient(60%_80%_at_50%_0%,rgba(255,251,230,0.18),transparent)]" aria-hidden />
-      {/* Broadcast-style plates naming the two real destinations */}
-      <div className="absolute inset-x-5 bottom-6 space-y-2.5 sm:inset-x-8">
+      {/* The two real destinations as broadcast-graphic cards: each a real link to the external site. */}
+      <div className="absolute inset-x-5 bottom-6 space-y-3 sm:inset-x-8">
         {STREAM_SITES.map((s, i) => (
-          <div key={s.id} className="lp-plate flex items-stretch overflow-hidden rounded-sm shadow-[0_20px_40px_-20px_rgba(0,0,0,0.9)]" style={{ "--d": `${0.35 + i * 0.18}s` } as CSSProperties}>
-            <span className="flex items-center px-3 font-display text-sm font-extrabold uppercase tracking-wide text-slate-950" style={{ background: s.theme.primary }}>
-              0{i + 1}
+          <a
+            key={s.id}
+            href={s.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`${s.name}: external website, opens in a new tab`}
+            className="lp-plate lp-dest group/dest relative block rounded-[3px] outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d0f12]"
+            style={{ "--d": `${0.35 + i * 0.18}s`, "--c1": s.theme.primary, "--c2": s.theme.secondary, ["--tw-ring-color" as string]: s.theme.primary } as CSSProperties}
+          >
+            <span className="lp-dest-face relative flex items-stretch overflow-hidden rounded-[3px] border border-white/10 bg-[linear-gradient(100deg,#101318,#0b0d10_60%)] shadow-[0_24px_40px_-22px_rgba(0,0,0,0.95)]">
+              {/* Brand edge: an angled, layered colour block like a broadcast lower third */}
+              <span className="lp-dest-edge relative flex w-16 shrink-0 items-center justify-center [clip-path:polygon(0_0,100%_0,78%_100%,0_100%)] sm:w-20" style={{ background: `linear-gradient(160deg, ${s.theme.primary}, ${s.theme.secondary})` }}>
+                <span className="font-display text-lg font-extrabold text-slate-950/85">0{i + 1}</span>
+              </span>
+              <span className="relative flex min-w-0 flex-1 items-center justify-between gap-3 py-3 pl-2 pr-4">
+                <span className="min-w-0">
+                  <span className={`block truncate font-display text-[1.6rem] font-extrabold uppercase leading-none ${s.look === "slash" ? "italic" : "tracking-wide"}`}>
+                    <span className="text-white">{s.wordmark[0]}</span>
+                    <span style={{ color: s.theme.primary }}>{s.wordmark[1]}</span>
+                  </span>
+                  <span className="mt-1 block truncate text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    External site · {displayHost(s.url)}
+                  </span>
+                </span>
+                <span className="lp-dest-arrow flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 text-white transition duration-300">
+                  <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover/dest:-translate-y-0.5 group-hover/dest:translate-x-0.5" />
+                </span>
+              </span>
+              {/* A light sweep that crosses the card on hover */}
+              <span className="lp-dest-sweep pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-[linear-gradient(100deg,transparent,rgba(255,255,255,0.10),transparent)]" aria-hidden />
             </span>
-            <span className="flex flex-1 items-center justify-between gap-3 bg-[#0b0c0f]/90 px-4 py-2.5 backdrop-blur">
-              <span className="font-display text-xl font-extrabold uppercase italic text-white">{s.name}</span>
-              <span className="text-[11px] text-slate-400">{displayHost(s.url)} · external site</span>
-            </span>
-          </div>
+          </a>
         ))}
       </div>
     </div>
@@ -423,44 +503,48 @@ function ClubHubVisual() {
 }
 
 function ChampionsVisual() {
-  const stars = Array.from({ length: 10 });
   return (
-    <div className="absolute inset-0 overflow-hidden bg-[radial-gradient(80%_90%_at_70%_30%,#16224a,#0a0e1f_55%,#07080d)]">
-      {/* A field of stars */}
+    <div className="absolute inset-0 overflow-hidden bg-[radial-gradient(90%_100%_at_72%_35%,#18265a,#0a0f24_55%,#06070c)]">
+      {/* Stars as background texture only */}
       <div className="absolute inset-0" aria-hidden>
         {Array.from({ length: 36 }).map((_, i) => (
           <span
             key={i}
             className="lp-twinkle absolute h-[2px] w-[2px] rounded-full bg-white"
-            style={{ left: `${(i * 29) % 100}%`, top: `${(i * 47) % 100}%`, ["--t" as string]: `${2 + (i % 5)}s`, ["--d" as string]: `${(i % 7) * 0.4}s` }}
+            style={{ left: `${(i * 29) % 100}%`, top: `${(i * 47) % 100}%`, ["--t" as string]: `${2 + (i % 5)}s`, ["--d" as string]: `${(i % 7) * 0.4}s`, opacity: 0.6 }}
           />
         ))}
       </div>
-      {/* Orbits and a turning ring of stars: a night of European football, not a logo */}
-      <svg className="absolute -right-16 top-1/2 h-[135%] -translate-y-1/2 sm:right-0" viewBox="0 0 400 400" fill="none" aria-hidden>
-        {[70, 110, 150, 190].map((r, i) => (
-          <circle key={r} cx="200" cy="200" r={r} stroke="#c9d3e6" strokeOpacity={0.16 - i * 0.03} strokeDasharray={i % 2 ? "2 6" : undefined} />
+      {/* The stage: two soft floodlight beams converging on the trophy */}
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-[62%] sm:w-[52%]" aria-hidden>
+        {[
+          { side: "left-[6%]", rot: "rotate-[16deg]" },
+          { side: "right-[6%]", rot: "-rotate-[16deg]" },
+        ].map((b) => (
+          <span
+            key={b.side}
+            className={`absolute -top-[10%] ${b.side} h-[95%] w-[46%] origin-top ${b.rot}`}
+            style={{ background: "linear-gradient(180deg, rgba(225,232,255,0.16), rgba(225,232,255,0.03) 70%, transparent)", clipPath: "polygon(42% 0, 58% 0, 100% 100%, 0 100%)" }}
+          />
         ))}
-        <g className="lp-spin" style={{ transformOrigin: "200px 200px", ["--dur" as string]: "80s" }}>
-          {stars.map((_, i) => {
-            const a = (i / stars.length) * Math.PI * 2;
-            const x = 200 + Math.cos(a) * 130, y = 200 + Math.sin(a) * 130;
-            const pts = Array.from({ length: 10 }, (_, k) => {
-              const rr = k % 2 ? 4 : 10;
-              const t = (Math.PI / 5) * k - Math.PI / 2;
-              return `${(x + rr * Math.cos(t)).toFixed(1)},${(y + rr * Math.sin(t)).toFixed(1)}`;
-            }).join(" ");
-            return <polygon key={i} points={pts} fill="#e7ecf7" fillOpacity={0.85} />;
-          })}
-        </g>
-        <circle cx="200" cy="200" r="46" fill="url(#lp-ucl-glow)" />
-        <defs>
-          <radialGradient id="lp-ucl-glow">
-            <stop offset="0" stopColor="#c9d3e6" stopOpacity="0.5" />
-            <stop offset="1" stopColor="#c9d3e6" stopOpacity="0" />
-          </radialGradient>
-        </defs>
-      </svg>
+        {/* Halo behind the cup */}
+        <span className="absolute left-1/2 top-[42%] aspect-square w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(201,211,230,0.30),rgba(120,140,220,0.10)_38%,transparent_66%)]" />
+        {/* Light motes in the beams */}
+        {Array.from({ length: 10 }).map((_, i) => (
+          <span
+            key={i}
+            className="lp-mote absolute h-1 w-1 rounded-full bg-[#e6ecff]/60"
+            style={{ left: `${18 + ((i * 41) % 64)}%`, top: `${12 + ((i * 29) % 62)}%`, ["--t" as string]: `${7 + (i % 4) * 2}s`, opacity: 0.25 + (i % 3) * 0.15 }}
+          />
+        ))}
+        {/* The platform: a lit disc with a polished rim */}
+        <span className="absolute bottom-[7%] left-1/2 h-[9%] w-[64%] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(closest-side,rgba(200,212,240,0.32),rgba(80,98,160,0.18)_60%,rgba(10,14,32,0.9))] shadow-[0_0_0_1px_rgba(201,211,230,0.28),0_18px_30px_-12px_rgba(0,0,0,0.9)]" />
+        <span className="absolute bottom-[10.5%] left-1/2 h-[3%] w-[34%] -translate-x-1/2 rounded-[50%] bg-black/55 blur-[6px]" />
+        {/* The trophy, standing on the platform */}
+        <div className="absolute bottom-[3%] left-1/2 h-[90%] w-[78%] -translate-x-1/2">
+          <TrophySlot className="h-full w-full" />
+        </div>
+      </div>
       <div className="absolute left-5 top-6 space-y-2 sm:left-8" aria-hidden>
         {["Standings", "Fixtures & results", "Knockout bracket", "Top scorers", "Top assists", "Clean sheets"].map((t, i) => (
           <p key={t} className="lp-plate font-display text-lg font-bold uppercase tracking-wide text-[#c9d3e6]" style={{ "--d": `${0.3 + i * 0.09}s`, opacity: 1 - i * 0.1 } as CSSProperties}>
@@ -664,56 +748,15 @@ function Experiences() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Closing
-
-function Closing() {
-  const doors = GUIDE.map((g) => ({ ...g, href: sectionHref(g.id) }));
-  return (
-    <section className="relative mt-32 overflow-hidden border-t border-line pt-20" aria-labelledby="lp-closing">
-      <div aria-hidden className="mb-14">
-        <Drift dur={60}>
-          {doors.map((d) => (
-            <span key={d.id} className="lp-outline mx-6 whitespace-nowrap font-display text-[clamp(3.5rem,9vw,8rem)] font-extrabold uppercase leading-none">
-              {d.name} <span className="text-volt [-webkit-text-stroke:0]">·</span>
-            </span>
-          ))}
-        </Drift>
-      </div>
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:px-8">
-        <div data-reveal>
-          <h2 id="lp-closing" className="font-display text-5xl font-extrabold uppercase leading-[0.9] text-white sm:text-6xl">
-            The game never stops.
-            <br />
-            <span className="text-volt">Neither do we.</span>
-          </h2>
-          <p className="mt-5 max-w-md text-slate-400">Pick a door. Everything on Football Hub is one tap from here.</p>
-        </div>
-        <nav aria-label="Football Hub sections" className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2">
-          {doors.map((d, i) => (
-            <Link key={d.id} href={d.href} data-reveal style={{ "--d": `${i * 60}ms` } as CSSProperties} className="group flex items-center justify-between gap-4 bg-ink px-5 py-5 transition hover:bg-panel">
-              <span>
-                <span className="block font-display text-sm font-bold text-slate-600 group-hover:text-volt">{d.n}</span>
-                <span className="block font-display text-xl font-bold uppercase text-white">{d.name}</span>
-              </span>
-              <ArrowUpRight className="h-5 w-5 text-slate-500 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-white" />
-            </Link>
-          ))}
-        </nav>
-      </div>
-    </section>
-  );
-}
-
 export default function Landing() {
   return (
     <div data-landing className="min-h-screen overflow-x-clip bg-ink text-slate-100">
       <LandingNav />
       <main>
         <Hero />
-        <Statement />
+        <KineticBand />
         <Experiences />
-        <Closing />
+        <Guide />
       </main>
       <Footer />
       <MotionDirector />
